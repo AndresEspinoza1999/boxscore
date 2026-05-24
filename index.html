@@ -73,7 +73,7 @@
     .mini-footer{display:flex;align-items:center;justify-content:space-between;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
     .mini-date{font-size:10px;color:var(--text3);}
     /* GAME CARD */
-    .game-card{background:var(--s2);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:background 0.12s;}
+    .game-card{background:var(--s2);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:background 0.12s;flex-shrink:0;}
     .game-card:active{background:var(--s3);}
     .gc-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);}
     .gc-sport{font-size:12px;font-weight:700;color:var(--sport-c,var(--text2));}
@@ -328,6 +328,7 @@ const normalizeGame = g => ({
 const normalizeReview = r => ({
   id:r.id, gameId:r.game_id, userId:r.user_id, user:r.username,
   rating:r.rating, text:r.body||'', videoUrl:r.video_url||'',
+  players:r.players||[],
   date:r.created_at ? r.created_at.split('T')[0] : '',
 });
 
@@ -837,11 +838,24 @@ function SearchPage({ state, navigate }) {
 }
 
 /* ── REVIEW SHEET ── */
+const GRADES = ['A','B','C','D','F'];
+const gradeColor = g => ({A:'#30d158',B:'#0a84ff',C:'#f0bf3d',D:'#ff9500',F:'#ff453a'}[g]||'#9898a8');
+
 function ReviewSheet({ game, onClose, onSubmit, existing }) {
   const [rating,setRating]=useState(existing?.rating||0);
   const [text,setText]=useState(existing?.text||'');
   const [videoUrl,setVideoUrl]=useState(existing?.videoUrl||'');
+  const [players,setPlayers]=useState(existing?.players||[]);
+  const [playerName,setPlayerName]=useState('');
   const color=getSportColor(game.sport);
+
+  const addPlayer = (grade) => {
+    const name = playerName.trim();
+    if(!name) return;
+    setPlayers(prev=>[...prev,{name,grade}]);
+    setPlayerName('');
+  };
+
   return (
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="sheet">
@@ -851,10 +865,32 @@ function ReviewSheet({ game, onClose, onSubmit, existing }) {
         <div className="t-micro" style={{marginBottom:8,textAlign:'center'}}>Your Rating</div>
         <div className="star-picker">{[1,2,3,4,5].map(i=><span key={i} className="star-pick" onClick={()=>setRating(i)} style={{opacity:i<=rating?1:0.3}}>{i<=rating?'★':'☆'}</span>)}</div>
         <div className="t-micro" style={{margin:'16px 0 8px'}}>Your Review <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional</span></div>
-        <textarea rows={4} value={text} onChange={e=>setText(e.target.value)} placeholder="What made this game memorable?"/>
-        <div className="t-micro" style={{margin:'12px 0 8px'}}>Clip URL <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional</span></div>
+        <textarea rows={3} value={text} onChange={e=>setText(e.target.value)} placeholder="What made this game memorable?"/>
+        <div className="t-micro" style={{margin:'14px 0 8px'}}>Player Spotlight <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional · type name, tap grade</span></div>
+        {players.length>0&&(
+          <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:8}}>
+            {players.map((p,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:6,background:'var(--s3)',border:'1px solid var(--border)',borderRadius:10,padding:'5px 10px'}}>
+                <span style={{fontSize:13,fontWeight:700}}>{p.name}</span>
+                <span style={{fontSize:12,fontWeight:900,color:gradeColor(p.grade),background:gradeColor(p.grade)+'22',borderRadius:5,padding:'1px 6px'}}>{p.grade}</span>
+                <span onClick={()=>setPlayers(prev=>prev.filter((_,j)=>j!==i))} style={{fontSize:14,color:'var(--text3)',cursor:'pointer',lineHeight:1}}>×</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {players.length<6&&(
+          <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <input value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="Player name…" onKeyDown={e=>e.key==='Enter'&&playerName.trim()&&addPlayer('A')} style={{flex:1,height:36,padding:'0 12px',fontSize:14}}/>
+            {GRADES.map(g=>(
+              <button key={g} onClick={()=>addPlayer(g)} style={{width:34,height:34,borderRadius:8,border:'1.5px solid',borderColor:playerName.trim()?gradeColor(g):'var(--border)',background:playerName.trim()?gradeColor(g)+'18':'var(--s3)',color:playerName.trim()?gradeColor(g):'var(--text3)',fontWeight:900,fontSize:13,cursor:'pointer',flexShrink:0}}>
+                {g}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="t-micro" style={{margin:'14px 0 8px'}}>Clip URL <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional</span></div>
         <input value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="YouTube link"/>
-        <button className="btn btn-primary btn-full" style={{marginTop:20,opacity:rating?1:0.35,background:color,color:'#000'}} onClick={()=>rating&&onSubmit({rating,text,videoUrl})}>
+        <button className="btn btn-primary btn-full" style={{marginTop:20,opacity:rating?1:0.35,background:color,color:'#000'}} onClick={()=>rating&&onSubmit({rating,text,videoUrl,players})}>
           {existing?'Update Review':'Submit Review'}
         </button>
       </div>
@@ -1064,6 +1100,16 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
                   </div>
                 </div>
                 <p className="review-body">{r.text}</p>
+                {r.players&&r.players.length>0&&(
+                  <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:8}}>
+                    {r.players.map((p,i)=>(
+                      <div key={i} style={{display:'inline-flex',alignItems:'center',gap:5,background:'var(--s3)',border:'1px solid var(--border)',borderRadius:8,padding:'3px 9px'}}>
+                        <span style={{fontSize:12,fontWeight:700,color:'var(--text2)'}}>{p.name}</span>
+                        <span style={{fontSize:11,fontWeight:900,color:gradeColor(p.grade)}}>{p.grade}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {r.videoUrl&&<VideoPreview url={r.videoUrl}/>}
                 <LikeBtn reviewId={r.id} likes={r.likes} currentUserId={state.currentUser.id} onToggle={id=>dispatch({type:'TOGGLE_LIKE',reviewId:id})}/>
               </div>
@@ -1210,7 +1256,7 @@ function AddGameSheet({ onClose, onSelect }) {
             {filtered.map(g=>(
               <div key={g.id} className="game-card" style={{['--sport-c']:getSportColor(g.sport)}} onClick={()=>onSelect(g)}>
                 <div className="gc-head">
-                  <span className="gc-sport">{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>
+                  <span className="gc-sport">{getSportMeta(g.sport).emoji} {g.league?(LEAGUE_LABELS[g.league]||getSportMeta(g.sport).label):getSportMeta(g.sport).label}</span>
                   <span className="gc-meta">{g.status==='in'?<span className="live-badge"><span className="live-dot"/>LIVE {g.statusDetail}</span>:gameDateLabel(g)}</span>
                 </div>
                 <div className="gc-body">
@@ -1393,7 +1439,7 @@ function App() {
     switch(action.type){
       case 'ADD_REVIEW': {
         const r=action.review;
-        const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:profile.username,rating:r.rating,body:r.text,video_url:r.videoUrl||''},{onConflict:'game_id,user_id'}).select().single();
+        const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:profile.username,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]},{onConflict:'game_id,user_id'}).select().single();
         if(!error&&data) setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);
         break;
       }
