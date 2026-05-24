@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <title>Benchscore</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--bg:#0a0a0f;--s1:#111118;--s2:#18181f;--s3:#202028;--border:rgba(255,255,255,0.07);--text:#f0f0f5;--text2:#9898a8;--text3:#55555f;--accent:#f0bf3d;--red:#ff453a;--green:#30d158;--blue:#0a84ff;}
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    html,body,#root{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;}
+    input,textarea,button,select{font-family:inherit;font-size:15px;outline:none;}
+    input,textarea,select{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:11px 14px;width:100%;transition:border 0.15s;}
+    input:focus,textarea:focus,select:focus{border-color:var(--accent);}
+    textarea{resize:vertical;min-height:80px;}
+    select{appearance:none;-webkit-appearance:none;}
+    button{cursor:pointer;}
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;padding:12px 20px;font-weight:700;font-size:15px;transition:opacity 0.15s,transform 0.1s;cursor:pointer;}
+    .btn:active{transform:scale(0.97);}
+    .btn-primary{background:var(--accent);color:#000;}
+    .btn-ghost{background:var(--s3);color:var(--text);border:1.5px solid var(--border);}
+    .btn-sm{padding:7px 14px;font-size:13px;border-radius:9px;}
+    .btn-full{width:100%;}
+    /* NAV */
+    .nav{display:flex;background:var(--s1);border-top:1px solid var(--border);padding:8px 0 max(12px,env(safe-area-inset-bottom));flex-shrink:0;}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;}
+    .nav-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
+    .nav-icon svg{width:24px;height:24px;color:var(--text3);transition:color 0.15s;}
+    .nav-item.active .nav-icon svg{color:var(--accent);}
+    .nav-label{font-size:10px;color:var(--text3);font-weight:500;transition:color 0.15s;}
+    .nav-item.active .nav-label{color:var(--accent);}
+    .nav-add-btn{width:48px;height:32px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#000;}
+    /* PAGE */
+    .page{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+    /* APP HEADER */
+    .app-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px;}
+    .app-logo{font-size:26px;font-weight:900;letter-spacing:-1px;}
+    .app-logo span{color:var(--accent);}
+    .app-sub{font-size:12px;color:var(--text3);}
+    /* SECTION */
+    .section-hd{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;}
+    .section-title{font-size:17px;font-weight:800;letter-spacing:-0.3px;}
+    .section-count{background:var(--s3);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:var(--text3);}
+    /* LIVE */
+    .live-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,69,58,0.15);color:var(--red);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;letter-spacing:0.3px;}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;animation:pulse 1.4s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+    .status-chip{background:var(--s3);color:var(--text2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;}
+    .status-chip.live{background:rgba(255,69,58,0.15);color:var(--red);}
+    /* SPORT PILLS */
+    .sport-scroll{display:flex;gap:7px;overflow-x:auto;padding:10px 16px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+    .sport-scroll::-webkit-scrollbar{display:none;}
+    .s-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--text3);border:1.5px solid var(--border);transition:all 0.15s;flex-shrink:0;}
+    .s-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));}
+    .s-dot{width:7px;height:7px;border-radius:50%;background:var(--sport-c,var(--accent));flex-shrink:0;}
+    /* SPORT COLORS */
+    .sc-all{--sport-c:#f0bf3d;} .sc-nba{--sport-c:#ff6b35;} .sc-nfl{--sport-c:#4895ef;} .sc-mlb{--sport-c:#e5383b;} .sc-nhl{--sport-c:#00c3ff;} .sc-soccer{--sport-c:#47d98e;} .sc-epl{--sport-c:#7b2fbe;} .sc-laliga{--sport-c:#ee8707;} .sc-ucl{--sport-c:#3d6fd4;} .sc-seriea{--sport-c:#00529a;} .sc-bundesliga{--sport-c:#d3010c;} .sc-ligue1{--sport-c:#dba111;} .sc-mls{--sport-c:#002f6c;}
+    /* SPORT BADGE */
+    .sport-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);color:var(--sport-c,var(--accent));}
+    /* STRIP */
+    .h-strip{display:flex;gap:10px;overflow-x:auto;padding:0 16px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+    .h-strip::-webkit-scrollbar{display:none;}
+    /* MINI CARD */
+    .mini-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:12px;cursor:pointer;min-width:150px;flex-shrink:0;transition:background 0.12s;border-left:3px solid var(--sport-c,var(--accent));}
+    .mini-card:active{background:var(--s3);}
+    .mini-badge{font-size:10px;font-weight:700;color:var(--sport-c,var(--text3));margin-bottom:8px;}
+    .mini-team-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+    .mini-abbr{font-size:12px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .mini-score{font-size:14px;font-weight:900;margin-left:auto;}
+    .mini-footer{display:flex;align-items:center;justify-content:space-between;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
+    .mini-date{font-size:10px;color:var(--text3);}
+    /* GAME CARD */
+    .game-card{background:var(--s2);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:background 0.12s;}
+    .game-card:active{background:var(--s3);}
+    .gc-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);}
+    .gc-sport{font-size:12px;font-weight:700;color:var(--sport-c,var(--text2));}
+    .gc-meta{font-size:11px;color:var(--text3);}
+    .gc-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+    .gc-team-row{display:flex;align-items:center;gap:8px;}
+    .gc-team-row.winner .gc-fullname{color:var(--text);font-weight:800;}
+    .gc-team-row.loser .gc-fullname{color:var(--text3);}
+    .gc-team-row.loser .gc-score{color:var(--text3);}
+    .gc-fullname{font-size:14px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .gc-score{font-size:16px;font-weight:900;letter-spacing:-0.5px;margin-left:auto;}
+    .gc-win-dot{width:6px;height:6px;border-radius:50%;background:var(--sport-c,var(--accent));flex-shrink:0;margin-left:4px;}
+    .gc-divider{height:1px;background:var(--border);}
+    .gc-foot{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;border-top:1px solid var(--border);}
+    .gc-avg{font-size:12px;font-weight:700;color:var(--accent);}
+    .gc-cnt{font-size:11px;color:var(--text3);}
+    /* HERO CARD */
+    .hero-card{background:var(--s2);border:1px solid var(--border);border-radius:20px;margin:0 16px;overflow:hidden;cursor:pointer;}
+    .hero-card-top{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+    .hero-badge{font-size:12px;font-weight:700;color:var(--sport-c,var(--accent));}
+    .hero-date{font-size:11px;color:var(--text3);margin-left:auto;}
+    .hero-matchup{display:flex;align-items:center;justify-content:space-between;padding:20px 16px;}
+    .hero-team-side{display:flex;flex-direction:column;align-items:center;flex:1;}
+    .hero-team-side.right{align-items:center;}
+    .hero-abbr{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
+    .hero-team-name{font-size:11px;color:var(--text3);text-align:center;margin-top:2px;}
+    .hero-score-block{display:flex;align-items:center;gap:4px;}
+    .hero-score{font-size:32px;font-weight:900;letter-spacing:-1.5px;}
+    .hero-vs{font-size:18px;font-weight:700;color:var(--text3);padding:0 8px;}
+    .hero-card-bot{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 14px;}
+    .hero-venue{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    /* STARS */
+    .stars{display:inline-flex;gap:1px;line-height:1;}
+    .star-f{color:var(--accent);}
+    .star-e{color:var(--s3);}
+    .star-picker{display:flex;justify-content:center;gap:8px;margin-bottom:4px;}
+    .star-pick{font-size:36px;cursor:pointer;transition:transform 0.1s;}
+    .star-pick:active{transform:scale(1.2);}
+    /* LIKE */
+    .like-btn{background:none;border:none;display:inline-flex;align-items:center;gap:5px;color:var(--text3);font-size:12px;padding:4px 0;cursor:pointer;margin-top:6px;font-weight:600;transition:color 0.15s;}
+    .like-btn svg{width:14px;height:14px;}
+    .like-btn.liked{color:var(--red);}
+    /* REVIEW */
+    .review-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
+    .review-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
+    .reviewer-name{font-size:14px;font-weight:700;margin-bottom:3px;}
+    .review-body{font-size:14px;color:var(--text2);line-height:1.55;margin-top:5px;}
+    .review-date{font-size:11px;color:var(--text3);}
+    .review-video-link{display:inline-block;margin-top:8px;font-size:12px;color:var(--accent);text-decoration:none;}
+    /* VIDEO */
+    .vid-thumb{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;margin-bottom:8px;aspect-ratio:16/9;}
+    .vid-thumb img{width:100%;height:100%;object-fit:cover;}
+    .vid-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;background:rgba(0,0,0,0.4);}
+    .vid-label{position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:linear-gradient(transparent,rgba(0,0,0,0.7));font-size:12px;font-weight:600;}
+    .vid-embed{border-radius:12px;overflow:hidden;aspect-ratio:16/9;margin-bottom:8px;}
+    .vid-embed iframe{width:100%;height:100%;border:none;}
+    /* DETAIL */
+    .detail-hd{padding:12px 16px 0;display:flex;align-items:center;gap:8px;}
+    .back-btn{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;padding:6px 0;}
+    .detail-sport-bar{padding:12px 16px 14px;border-bottom:1px solid var(--border);}
+    .detail-matchup{display:flex;align-items:center;justify-content:space-between;padding:24px 20px;}
+    .detail-team-col{display:flex;flex-direction:column;align-items:center;flex:1;}
+    .detail-team-abbr{font-size:26px;font-weight:900;letter-spacing:-1px;}
+    .detail-team-name{font-size:11px;color:var(--text3);margin-top:2px;text-align:center;}
+    .detail-score-mid{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;padding:0 12px;}
+    .detail-score{font-size:34px;font-weight:900;letter-spacing:-1.5px;}
+    .detail-vs{font-size:20px;font-weight:700;color:var(--text3);}
+    /* SEARCH */
+    .search-hd{padding:16px 16px 4px;background:var(--s1);border-bottom:1px solid var(--border);}
+    .search-input{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:10px 14px;width:100%;font-size:14px;}
+    .search-input:focus{border-color:var(--accent);}
+    .f-pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--text3);border:1.5px solid var(--border);transition:all 0.15s;flex-shrink:0;}
+    .f-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 18%,transparent);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));}
+    .team-ac-wrap{position:relative;}
+    .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--s2);border:1px solid var(--border);border-radius:12px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+    .ac-hdr{font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3);padding:8px 12px 4px;}
+    .ac-item{padding:10px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background 0.1s;}
+    .ac-item:hover{background:var(--s3);}
+    .ac-item mark{background:none;color:var(--accent);font-weight:700;}
+    /* OVERLAY / SHEET */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:flex;align-items:flex-end;}
+    .sheet{background:var(--s1);border-radius:24px 24px 0 0;padding:16px 16px max(32px,env(safe-area-inset-bottom));width:100%;max-height:92dvh;overflow-y:auto;}
+    .sheet-handle{width:36px;height:4px;background:var(--s3);border-radius:2px;margin:0 auto 16px;}
+    /* TOAST */
+    .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:24px;font-size:14px;font-weight:600;z-index:200;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.6);}
+    /* SPINNER */
+    .spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    /* EMPTY */
+    .empty{text-align:center;padding:48px 24px;color:var(--text3);}
+    .empty-icon{font-size:36px;margin-bottom:12px;}
+    .empty p{font-size:14px;line-height:1.5;}
+    /* GAP STACK */
+    .gap-stack{display:flex;flex-direction:column;gap:10px;}
+    /* ACTIVITY */
+    .activity-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+    .activity-row:last-child{border-bottom:none;}
+    .activity-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;}
+    /* PROFILE */
+    .profile-hd{padding:24px 16px 16px;text-align:center;border-bottom:1px solid var(--border);}
+    .avatar{width:64px;height:64px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;margin:0 auto 10px;}
+    .profile-name{font-size:22px;font-weight:800;letter-spacing:-0.5px;}
+    .profile-stats{display:flex;justify-content:center;gap:28px;margin:14px 0 10px;}
+    .stat-num{font-size:20px;font-weight:900;text-align:center;}
+    .stat-lbl{font-size:11px;color:var(--text3);text-align:center;margin-top:2px;}
+    /* TABS */
+    .tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 16px;}
+    .tab-item{flex:1;text-align:center;padding:12px;font-size:13px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+    .tab-item.active{color:var(--accent);border-bottom-color:var(--accent);}
+    /* LEADERBOARD */
+    .lb-row{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:background 0.12s;}
+    .lb-row:active{background:var(--s3);}
+    .lb-rank{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
+    .lb-rank.gold{color:#f0bf3d;} .lb-rank.silver{color:#c0c0c0;} .lb-rank.bronze{color:#cd7f32;}
+    .lb-info{flex:1;min-width:0;}
+    .lb-teams{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .lb-meta{font-size:12px;color:var(--text3);margin-top:2px;}
+    .lb-right{text-align:right;flex-shrink:0;}
+    .lb-avg{font-size:18px;font-weight:900;color:var(--accent);}
+    .lb-cnt{font-size:11px;color:var(--text3);}
+    /* ONBOARDING */
+    .onboard-wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);}
+    .onboard-logo{font-size:36px;font-weight:900;letter-spacing:-1.5px;margin-bottom:4px;}
+    .onboard-logo span,.app-logo span{color:var(--accent);}
+    .onboard-sub{font-size:15px;color:var(--text3);margin-bottom:40px;}
+    .onboard-card{background:var(--s2);border:1px solid var(--border);border-radius:24px;padding:28px 24px;width:100%;max-width:400px;}
+    .onboard-q{font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px;}
+    .onboard-hint{font-size:14px;color:var(--text3);margin-bottom:24px;}
+    /* MISC */
+    .tag-chip{background:var(--s3);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text3);}
+    .wl-btn{background:var(--s3);border:1.5px solid var(--border);color:var(--text2);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+    .wl-btn.saved{background:color-mix(in srgb,var(--accent) 15%,transparent);border-color:var(--accent);color:var(--accent);}
+    .t-micro{font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3);}
+    .sport-tile{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:12px;cursor:pointer;background:var(--s3);border:1.5px solid var(--border);gap:4px;transition:all 0.15s;}
+    .sport-tile.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);border-color:var(--sport-c,var(--accent));}
+    .t-em{font-size:20px;line-height:1;} .t-nm{font-size:10px;font-weight:700;color:var(--text3);}
+    .sport-tile.active .t-nm{color:var(--sport-c,var(--accent));}
+    .api-game-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:background 0.12s;}
+    .api-game-row:active{background:var(--s3);}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useEffect, useReducer, useRef, useCallback, useMemo } = React;
+
+/* ── SUPABASE ── */
+const SUPABASE_URL = 'https://kyvwxvbonucjhypjnupw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5dnd4dmJvbnVjamh5cGpudXB3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0ODYwNTYsImV4cCI6MjA5NTA2MjA1Nn0.E5wNzQwdruYdouBCdluPZnuYLSBh3uW7nVpbQEURkmo';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ── CONSTANTS ── */
+const SPORT_COLORS = { nba:'#ff6b35', nfl:'#4895ef', mlb:'#e5383b', nhl:'#00c3ff', soccer:'#47d98e', all:'#f0bf3d' };
+const SPORTS = [
+  {id:'all',emoji:'🏟️',label:'All'},
+  {id:'nba',emoji:'🏀',label:'NBA'},
+  {id:'nfl',emoji:'🏈',label:'NFL'},
+  {id:'mlb',emoji:'⚾',label:'MLB'},
+  {id:'nhl',emoji:'🏒',label:'NHL'},
+  {id:'soccer',emoji:'⚽',label:'Soccer'},
+];
+const SPORT_PICKS = [
+  {id:'nba',emoji:'🏀',label:'NBA'},{id:'nfl',emoji:'🏈',label:'NFL'},
+  {id:'mlb',emoji:'⚾',label:'MLB'},{id:'nhl',emoji:'🏒',label:'NHL'},{id:'soccer',emoji:'⚽',label:'Soccer'},
+];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const LEAGUES = {
+  nba:[{id:'nba',label:'NBA'}],
+  nfl:[{id:'nfl',label:'NFL'}],
+  mlb:[{id:'mlb',label:'MLB'}],
+  nhl:[{id:'nhl',label:'NHL'}],
+  soccer:[
+    {id:'epl',label:'Premier League'},{id:'laliga',label:'La Liga'},
+    {id:'ucl',label:'Champions League'},{id:'seriea',label:'Serie A'},
+    {id:'bundesliga',label:'Bundesliga'},{id:'ligue1',label:'Ligue 1'},{id:'mls',label:'MLS'},
+  ],
+};
+const TEAMS_DB = {
+  nba:['Atlanta Hawks','Boston Celtics','Brooklyn Nets','Charlotte Hornets','Chicago Bulls','Cleveland Cavaliers','Dallas Mavericks','Denver Nuggets','Detroit Pistons','Golden State Warriors','Houston Rockets','Indiana Pacers','LA Clippers','Los Angeles Lakers','Memphis Grizzlies','Miami Heat','Milwaukee Bucks','Minnesota Timberwolves','New Orleans Pelicans','New York Knicks','Oklahoma City Thunder','Orlando Magic','Philadelphia 76ers','Phoenix Suns','Portland Trail Blazers','Sacramento Kings','San Antonio Spurs','Toronto Raptors','Utah Jazz','Washington Wizards'],
+  nfl:['Arizona Cardinals','Atlanta Falcons','Baltimore Ravens','Buffalo Bills','Carolina Panthers','Chicago Bears','Cincinnati Bengals','Cleveland Browns','Dallas Cowboys','Denver Broncos','Detroit Lions','Green Bay Packers','Houston Texans','Indianapolis Colts','Jacksonville Jaguars','Kansas City Chiefs','Las Vegas Raiders','Los Angeles Chargers','Los Angeles Rams','Miami Dolphins','Minnesota Vikings','New England Patriots','New Orleans Saints','New York Giants','New York Jets','Philadelphia Eagles','Pittsburgh Steelers','San Francisco 49ers','Seattle Seahawks','Tampa Bay Buccaneers','Tennessee Titans','Washington Commanders'],
+  mlb:['Arizona Diamondbacks','Atlanta Braves','Baltimore Orioles','Boston Red Sox','Chicago Cubs','Chicago White Sox','Cincinnati Reds','Cleveland Guardians','Colorado Rockies','Detroit Tigers','Houston Astros','Kansas City Royals','Los Angeles Angels','Los Angeles Dodgers','Miami Marlins','Milwaukee Brewers','Minnesota Twins','New York Mets','New York Yankees','Oakland Athletics','Philadelphia Phillies','Pittsburgh Pirates','San Diego Padres','San Francisco Giants','Seattle Mariners','St. Louis Cardinals','Tampa Bay Rays','Texas Rangers','Toronto Blue Jays','Washington Nationals'],
+  nhl:['Anaheim Ducks','Boston Bruins','Buffalo Sabres','Calgary Flames','Carolina Hurricanes','Chicago Blackhawks','Colorado Avalanche','Columbus Blue Jackets','Dallas Stars','Detroit Red Wings','Edmonton Oilers','Florida Panthers','Los Angeles Kings','Minnesota Wild','Montreal Canadiens','Nashville Predators','New Jersey Devils','New York Islanders','New York Rangers','Ottawa Senators','Philadelphia Flyers','Pittsburgh Penguins','San Jose Sharks','Seattle Kraken','St. Louis Blues','Tampa Bay Lightning','Toronto Maple Leafs','Utah Hockey Club','Vancouver Canucks','Vegas Golden Knights','Washington Capitals','Winnipeg Jets'],
+  epl:['Arsenal','Aston Villa','Bournemouth','Brentford','Brighton & Hove Albion','Chelsea','Crystal Palace','Everton','Fulham','Ipswich Town','Leicester City','Liverpool','Manchester City','Manchester United','Newcastle United','Nottingham Forest','Southampton','Tottenham Hotspur','West Ham United','Wolverhampton Wanderers'],
+  laliga:['Alaves','Athletic Club','Atletico Madrid','Barcelona','Betis','Celta Vigo','Espanyol','Getafe','Girona','Las Palmas','Leganes','Mallorca','Osasuna','Rayo Vallecano','Real Madrid','Real Sociedad','Real Valladolid','Sevilla','Valencia','Villarreal'],
+  ucl:['AC Milan','Ajax','Arsenal','Atletico Madrid','Barcelona','Bayern Munich','Benfica','Borussia Dortmund','Celtic','Chelsea','Club Brugge','Feyenoord','Inter Milan','Juventus','Liverpool','Manchester City','Napoli','Paris Saint-Germain','Porto','PSV Eindhoven','RB Leipzig','Real Madrid','Sporting CP','Tottenham Hotspur'],
+  seriea:['AC Milan','Atalanta','Bologna','Cagliari','Como','Empoli','Fiorentina','Genoa','Hellas Verona','Inter Milan','Juventus','Lazio','Lecce','Monza','Napoli','Parma','Roma','Torino','Udinese','Venezia'],
+  bundesliga:['Bayer Leverkusen','Bayern Munich','Bochum','Borussia Dortmund','Borussia Mönchengladbach','Eintracht Frankfurt','FC Augsburg','Freiburg','Heidenheim','Hoffenheim','Holstein Kiel','Köln','Mainz','RB Leipzig','St. Pauli','Stuttgart','Union Berlin','Werder Bremen','Wolfsburg'],
+  ligue1:['Angers','Auxerre','Brest','Le Havre','Lens','Lille','Lyon','Marseille','Monaco','Montpellier','Nantes','Nice','Paris Saint-Germain','Reims','Rennes','Saint-Etienne','Strasbourg','Toulouse'],
+  mls:['Atlanta United','Austin FC','CF Montreal','Charlotte FC','Chicago Fire','Cincinnati FC','Colorado Rapids','Columbus Crew','D.C. United','FC Dallas','Houston Dynamo','Inter Miami','LA Galaxy','LAFC','Minnesota United','Nashville SC','New England Revolution','New York City FC','New York Red Bulls','Orlando City','Philadelphia Union','Portland Timbers','Real Salt Lake','San Jose Earthquakes','Seattle Sounders','Sporting Kansas City','St. Louis City SC','Toronto FC','Vancouver Whitecaps'],
+};
+const ABBR_MAP = {
+  'Los Angeles Lakers':'LAL','Boston Celtics':'BOS','Golden State Warriors':'GSW','Miami Heat':'MIA','Denver Nuggets':'DEN','Oklahoma City Thunder':'OKC','Dallas Mavericks':'DAL','Minnesota Timberwolves':'MIN','New York Knicks':'NYK','Chicago Bulls':'CHI','Milwaukee Bucks':'MIL','Philadelphia 76ers':'PHI','Cleveland Cavaliers':'CLE','Atlanta Hawks':'ATL','Brooklyn Nets':'BKN','Charlotte Hornets':'CHA','Detroit Pistons':'DET','Houston Rockets':'HOU','Indiana Pacers':'IND','LA Clippers':'LAC','Memphis Grizzlies':'MEM','New Orleans Pelicans':'NOP','Orlando Magic':'ORL','Phoenix Suns':'PHX','Portland Trail Blazers':'POR','Sacramento Kings':'SAC','San Antonio Spurs':'SAS','Toronto Raptors':'TOR','Utah Jazz':'UTA','Washington Wizards':'WAS',
+  'Kansas City Chiefs':'KC','San Francisco 49ers':'SF','Philadelphia Eagles':'PHI','Dallas Cowboys':'DAL','Buffalo Bills':'BUF','Miami Dolphins':'MIA','Detroit Lions':'DET','Green Bay Packers':'GB','Arizona Cardinals':'ARI','Atlanta Falcons':'ATL','Baltimore Ravens':'BAL','Carolina Panthers':'CAR','Chicago Bears':'CHI','Cincinnati Bengals':'CIN','Cleveland Browns':'CLE','Denver Broncos':'DEN','Houston Texans':'HOU','Indianapolis Colts':'IND','Jacksonville Jaguars':'JAX','Las Vegas Raiders':'LV','Los Angeles Chargers':'LAC','Los Angeles Rams':'LAR','Minnesota Vikings':'MIN','New England Patriots':'NE','New Orleans Saints':'NO','New York Giants':'NYG','New York Jets':'NYJ','Pittsburgh Steelers':'PIT','Seattle Seahawks':'SEA','Tampa Bay Buccaneers':'TB','Tennessee Titans':'TEN','Washington Commanders':'WSH',
+  'New York Yankees':'NYY','Boston Red Sox':'BOS','Los Angeles Dodgers':'LAD','Houston Astros':'HOU','Atlanta Braves':'ATL','New York Mets':'NYM','Chicago Cubs':'CHC','St. Louis Cardinals':'STL','Arizona Diamondbacks':'ARI','Baltimore Orioles':'BAL','Chicago White Sox':'CWS','Cincinnati Reds':'CIN','Cleveland Guardians':'CLE','Colorado Rockies':'COL','Detroit Tigers':'DET','Kansas City Royals':'KC','Los Angeles Angels':'LAA','Miami Marlins':'MIA','Milwaukee Brewers':'MIL','Minnesota Twins':'MIN','Oakland Athletics':'OAK','Philadelphia Phillies':'PHI','Pittsburgh Pirates':'PIT','San Diego Padres':'SD','San Francisco Giants':'SF','Seattle Mariners':'SEA','Tampa Bay Rays':'TB','Texas Rangers':'TEX','Toronto Blue Jays':'TOR','Washington Nationals':'WSH',
+  'Edmonton Oilers':'EDM','Florida Panthers':'FLA','Colorado Avalanche':'COL','Toronto Maple Leafs':'TOR','Boston Bruins':'BOS','New York Rangers':'NYR','Vegas Golden Knights':'VGK','Dallas Stars':'DAL','Anaheim Ducks':'ANA','Buffalo Sabres':'BUF','Calgary Flames':'CGY','Carolina Hurricanes':'CAR','Chicago Blackhawks':'CHI','Columbus Blue Jackets':'CBJ','Detroit Red Wings':'DET','Los Angeles Kings':'LAK','Minnesota Wild':'MIN','Montreal Canadiens':'MTL','Nashville Predators':'NSH','New Jersey Devils':'NJD','New York Islanders':'NYI','Ottawa Senators':'OTT','Philadelphia Flyers':'PHI','Pittsburgh Penguins':'PIT','San Jose Sharks':'SJS','Seattle Kraken':'SEA','St. Louis Blues':'STL','Tampa Bay Lightning':'TBL','Utah Hockey Club':'UTA','Vancouver Canucks':'VAN','Washington Capitals':'WSH','Winnipeg Jets':'WPG',
+  'Real Madrid':'RMA','Manchester City':'MCI','Arsenal':'ARS','Chelsea':'CHE','Liverpool':'LIV','Barcelona':'BAR','Atletico Madrid':'ATM','Manchester United':'MUN','Bayern Munich':'FCB','Paris Saint-Germain':'PSG','Juventus':'JUV','Inter Milan':'INT','AC Milan':'MIL','Borussia Dortmund':'BVB','RB Leipzig':'RBL','Porto':'POR','Benfica':'SLB','Ajax':'AJX','Inter Miami':'IMI','LA Galaxy':'LAG','LAFC':'LAF','Atlanta United':'ATL','Seattle Sounders':'SEA',
+};
+const SOCCER_LOGO_IDS = {
+  'Arsenal':359,'Aston Villa':362,'Bournemouth':335,'Brentford':10924,'Brighton & Hove Albion':331,'Chelsea':363,'Crystal Palace':384,'Everton':368,'Fulham':370,'Ipswich Town':394,'Leicester City':375,'Liverpool':364,'Manchester City':382,'Manchester United':360,'Newcastle United':365,'Nottingham Forest':393,'Southampton':376,'Tottenham Hotspur':361,'West Ham United':371,'Wolverhampton Wanderers':380,
+  'Real Madrid':86,'Barcelona':83,'Atletico Madrid':1068,'Sevilla':243,'Valencia':94,'Villarreal':102,'Real Sociedad':97,'Athletic Club':85,'Betis':88,'Girona':9906,'Alaves':174,'Celta Vigo':232,'Espanyol':90,'Getafe':3842,'Las Palmas':3817,'Mallorca':95,'Osasuna':252,'Rayo Vallecano':1073,'Real Valladolid':104,'Leganes':272,
+  'Bayern Munich':132,'Paris Saint-Germain':160,'Juventus':111,'Inter Milan':110,'AC Milan':109,'Borussia Dortmund':124,'RB Leipzig':11420,'Benfica':199,'Porto':244,'PSV Eindhoven':266,'Celtic':264,'Club Brugge':399,'Feyenoord':271,'Napoli':3470,'Sporting CP':250,
+  'Atalanta':3471,'Bologna':3530,'Cagliari':3475,'Fiorentina':3484,'Genoa':3480,'Lazio':3520,'Roma':3515,'Torino':3524,'Udinese':3526,
+  'Bayer Leverkusen':131,'Eintracht Frankfurt':3826,'Hoffenheim':10938,'Köln':133,'Mainz':10939,'Stuttgart':137,'Werder Bremen':138,'Wolfsburg':139,
+  'Lille':167,'Lyon':169,'Marseille':170,'Monaco':171,'Nice':174,'Rennes':5886,'Lens':5879,'Brest':5877,
+  'Inter Miami':20232,'LA Galaxy':19750,'Seattle Sounders':9726,'Atlanta United':18093,'New York City FC':18057,'New York Red Bulls':9728,'Portland Timbers':9729,'Columbus Crew':9725,'Philadelphia Union':9731,
+};
+
+function abbr(name) { return ABBR_MAP[name] || name.split(' ').map(w=>w[0]).join('').slice(0,3).toUpperCase(); }
+
+function getLogoUrl(name, sport, espnId=null) {
+  // If we have a direct ESPN team ID (from API), use it
+  if (espnId) {
+    if (['nba','nfl','mlb','nhl'].includes(sport)) return `https://a.espncdn.com/i/teamlogos/${sport}/500/${espnId}.png`;
+    return `https://a.espncdn.com/i/teamlogos/soccer/500/${espnId}.png`;
+  }
+  if (['nba','nfl','mlb','nhl'].includes(sport)) {
+    const a = (ABBR_MAP[name] || name.split(' ').map(w=>w[0]).join('').slice(0,3)).toLowerCase();
+    return `https://a.espncdn.com/i/teamlogos/${sport}/500/${a}.png`;
+  }
+  if (sport === 'soccer') { const id = SOCCER_LOGO_IDS[name]; if (id) return `https://a.espncdn.com/i/teamlogos/soccer/500/${id}.png`; }
+  return null;
+}
+
+function TeamLogo({ name, sport, size=28, espnId=null }) {
+  const [failed, setFailed] = useState(false);
+  const color = getSportColor(sport);
+  const url = !failed ? getLogoUrl(name, sport, espnId) : null;
+  const r = Math.round(size * 0.22);
+  if (!url) return (
+    <div style={{width:size,height:size,borderRadius:r,background:`${color}18`,border:`1.5px solid ${color}38`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:Math.round(size*0.3),fontWeight:900,color,letterSpacing:'-0.5px',fontFamily:'inherit',lineHeight:1}}>
+      {abbr(name).slice(0,2)}
+    </div>
+  );
+  return <img src={url} alt={name} width={size} height={size} style={{borderRadius:r,flexShrink:0,objectFit:'contain',display:'block'}} onError={()=>setFailed(true)}/>;
+}
+
+/* ── NORMALIZE DB → APP ── */
+const normalizeGame = g => ({
+  id:g.id, sport:g.sport, league:g.league||g.sport, home:g.home, away:g.away,
+  homeScore:g.home_score??g.homeScore, awayScore:g.away_score??g.awayScore, date:g.date||'',
+  venue:g.venue||'', description:g.description||'', videoUrl:g.video_url||'', tags:g.tags||[],
+  homeTeamId:g.home_team_id||g.homeTeamId||null, awayTeamId:g.away_team_id||g.awayTeamId||null,
+  status:g.status||'post', datetime:g.datetime||null,
+  homeRecord:g.home_record||g.homeRecord||'', awayRecord:g.away_record||g.awayRecord||'',
+  seriesInfo:g.series_info||g.seriesInfo||'',
+  seriesType:g.series_type||g.seriesType||'',
+  homeSeriesWins:g.home_series_wins??g.homeSeriesWins??null,
+  awaySeriesWins:g.away_series_wins??g.awaySeriesWins??null,
+  isPlayoff:!!(g.is_playoff||g.isPlayoff||g.seriesInfo),
+});
+const normalizeReview = r => ({
+  id:r.id, gameId:r.game_id, userId:r.user_id, user:r.username,
+  rating:r.rating, text:r.body||'', videoUrl:r.video_url||'',
+  date:r.created_at ? r.created_at.split('T')[0] : '',
+});
+
+/* ── ESPN API ── */
+const SPORT_PARENT = {nba:'nba',nfl:'nfl',mlb:'mlb',nhl:'nhl',mls:'soccer',epl:'soccer',laliga:'soccer',ucl:'soccer',seriea:'soccer',bundesliga:'soccer',ligue1:'soccer'};
+const LEAGUE_LABELS = {mls:'MLS',epl:'Premier League',laliga:'La Liga',ucl:'UCL',seriea:'Serie A',bundesliga:'Bundesliga',ligue1:'Ligue 1',nba:'NBA',nfl:'NFL',mlb:'MLB',nhl:'NHL'};
+const LEAGUE_PATHS = {
+  nba:'basketball/nba', nfl:'american-football/nfl', mlb:'baseball/mlb', nhl:'hockey/nhl',
+  epl:'soccer/eng.1', laliga:'soccer/esp.1', ucl:'soccer/uefa.champions',
+  seriea:'soccer/ita.1', bundesliga:'soccer/ger.1', ligue1:'soccer/fra.1', mls:'soccer/usa.1',
+};
+async function fetchLeagueGames(sportKey) {
+  const path = LEAGUE_PATHS[sportKey]; if(!path) return [];
+  try {
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard`);
+    const data = await res.json();
+    return (data.events||[]).map(ev=>parseEspnEvent(ev,sportKey));
+  } catch(e){ return []; }
+}
+async function fetchRecentLeagueGames(sportKey, count=10, daysBack=14) {
+  const path = LEAGUE_PATHS[sportKey]; if(!path) return [];
+  // Build array of date strings: today going back daysBack days
+  const now = new Date();
+  const dateStrs = Array.from({length:daysBack+1},(_,i)=>{
+    const d=new Date(now.getTime()-i*86400000);
+    return d.toISOString().split('T')[0].replace(/-/g,'');
+  });
+  try {
+    const results = await Promise.all(dateStrs.map(async date=>{
+      try {
+        const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${date}`);
+        const data=await res.json();
+        return (data.events||[]).map(ev=>parseEspnEvent(ev,sportKey));
+      } catch(e){ return []; }
+    }));
+    const seen=new Set();
+    return results.flat()
+      .filter(g=>{ if(seen.has(g.apiId))return false; seen.add(g.apiId); return true; })
+      .sort((a,b)=>new Date(b.datetime||b.date)-new Date(a.datetime||a.date))
+      .slice(0,count);
+  } catch(e){ return []; }
+}
+
+function parseEspnEvent(ev, sportKey) {
+  const comp=ev.competitions?.[0]||{}, comps=comp.competitors||[];
+  const home=comps.find(c=>c.homeAway==='home')||comps[0]||{};
+  const away=comps.find(c=>c.homeAway==='away')||comps[1]||{};
+  const status=comp.status||{}, st=status.type?.state||'pre';
+  // Series / playoff data
+  const series=comp.series||null;
+  const seriesType=series?.type?.text||''; // "Best of 7"
+  const seriesSummary=series?.summary||'';
+  // ESPN puts per-team wins in series.competitors array
+  const seriesComps=series?.competitors||[];
+  const homeSeriesComp=seriesComps.find(c=>c.id===home.team?.id)||null;
+  const awaySeriesComp=seriesComps.find(c=>c.id===away.team?.id)||null;
+  const homeSeriesWins=homeSeriesComp?parseInt(homeSeriesComp.wins||0):null;
+  const awaySeriesWins=awaySeriesComp?parseInt(awaySeriesComp.wins||0):null;
+  const isPlayoff=!!(series||comp.notes?.some(n=>n.type==='event'&&/playoff|postseason|round/i.test(n.headline||'')));
+  const roundText=comp.notes?.find(n=>n.type==='event')?.headline||'';
+  const seriesInfo=seriesSummary||(isPlayoff&&roundText?roundText:'');
+  return {
+    fromApi:true, apiId:ev.id, id:'api_'+ev.id, sport:SPORT_PARENT[sportKey]||sportKey, league:sportKey,
+    home:home.team?.displayName||'', away:away.team?.displayName||'',
+    home_abbr:home.team?.abbreviation||'', away_abbr:away.team?.abbreviation||'',
+    homeScore:st!=='pre'?parseInt(home.score||0):undefined,
+    awayScore:st!=='pre'?parseInt(away.score||0):undefined,
+    homeTeamId:home.team?.id, awayTeamId:away.team?.id,
+    venue:comp.venue?.fullName||'', date:ev.date?.split('T')[0]||'',
+    datetime:ev.date, status:st, statusDetail:status.type?.shortDetail||'',
+    period:status.period, clock:status.displayClock,
+    homeRecord:home.records?.[0]?.summary||'', awayRecord:away.records?.[0]?.summary||'',
+    seriesInfo, seriesType, homeSeriesWins, awaySeriesWins, isPlayoff,
+    tags:[], description:'', videoUrl:'',
+  };
+}
+function gameDateLabel(game) {
+  if(!game.datetime&&!game.date) return '';
+  if(game.status==='in') return game.statusDetail||'LIVE';
+  const d=new Date(game.datetime||game.date), now=new Date();
+  const isToday=d.toDateString()===now.toDateString();
+  const isTomorrow=new Date(now.getTime()+86400000).toDateString()===d.toDateString();
+  const timeStr=game.datetime?d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York'})+' ET':'';
+  if(game.status==='post') return isToday?'Final':MONTHS[d.getMonth()]+' '+d.getDate()+' · Final';
+  if(isToday) return timeStr?'Today · '+timeStr:'Today';
+  if(isTomorrow) return timeStr?'Tomorrow · '+timeStr:'Tomorrow';
+  return MONTHS[d.getMonth()]+' '+d.getDate()+(timeStr?' · '+timeStr:'');
+}
+
+/* ── UTILS ── */
+function avgRating(reviews) { return reviews.length ? reviews.reduce((a,b)=>a+b.rating,0)/reviews.length : 0; }
+function formatDate(d)  { return d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''; }
+function formatShort(d) { return d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}) : ''; }
+function getYtId(url) { if(!url)return null; const m=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/); return m?m[1]:null; }
+function getSportColor(sport) { return SPORT_COLORS[sport]||'#f0bf3d'; }
+function getSportMeta(sport)  { return SPORTS.find(s=>s.id===sport)||SPORTS[0]; }
+
+function VideoPreview({ url }) {
+  const [open, setOpen] = useState(false);
+  const ytId = getYtId(url);
+  if (!ytId) return <a href={url} target="_blank" rel="noreferrer" className="review-video-link">📼 View clip</a>;
+  if (open) return (
+    <div className="vid-embed" style={{marginTop:8}}>
+      <iframe src={`https://www.youtube.com/embed/${ytId}?autoplay=1`} allowFullScreen allow="autoplay"/>
+    </div>
+  );
+  return (
+    <div className="vid-thumb" style={{marginTop:8}} onClick={()=>setOpen(true)}>
+      <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt="Video clip" onError={e=>e.target.style.display='none'}/>
+      <div className="vid-play-btn">▶</div>
+      <div className="vid-label">▶ Play clip</div>
+    </div>
+  );
+}
+
+function Stars({ rating, size=13 }) {
+  const full=Math.floor(rating), half=rating-full>=0.5;
+  return <span className="stars">{[1,2,3,4,5].map(i=><span key={i} className={i<=full?'star-f':half&&i===full+1?'star-f':'star-e'} style={{fontSize:size}}>{i<=full?'★':half&&i===full+1?'⯨':'☆'}</span>)}</span>;
+}
+
+/* ── SVG NAV ICONS ── */
+function IconHome({ active }) { return active ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12L12 4l9 8v8a1 1 0 01-1 1h-5v-5H9v5H4a1 1 0 01-1-1z"/></svg>; }
+function IconSearch({ active }) { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active?"2.2":"1.8"} strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="19.5" y1="19.5" x2="15.5" y2="15.5"/></svg>; }
+function IconTrophy({ active }) { return active ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h2V3H3v2h2C5 9.4 7.4 13 11 13.9V16H8v2h8v-2h-3v-2.1C16.6 13 19 9.4 19 5zM5 5h14c0 3.3-2.1 6-5 7h-4C7.1 11 5 8.3 5 5zM12 20a2 2 0 100-4 2 2 0 000 4z"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M17 5h3a1 1 0 011 1v1a4 4 0 01-4 4M7 5H4a1 1 0 00-1 1v1a4 4 0 004 4M6 5V3h12v2M6 5c0 5.5 2.7 8.5 6 9 3.3-.5 6-3.5 6-9"/></svg>; }
+function IconPerson({ active }) { return active ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
+
+/* ── GAME CARD ── */
+function GameCard({ game, reviews, onPress }) {
+  const rv=reviews.filter(r=>r.gameId===game.id), avg=avgRating(rv), color=getSportColor(game.sport), meta=getSportMeta(game.sport);
+  const leagueLabel = game.league?(LEAGUE_LABELS[game.league]||meta.label):meta.label;
+  const hasScore=game.homeScore!==undefined&&game.awayScore!==undefined, awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore;
+  return (
+    <div className={`game-card sc-${game.sport}`} style={{['--sport-c']:color}} onClick={onPress}>
+      <div className="gc-head">
+        <span className="gc-sport">{meta.emoji} {leagueLabel}{game.isPlayoff&&<span style={{marginLeft:5,fontSize:10,fontWeight:800,color:'var(--accent)',background:'color-mix(in srgb,var(--accent) 15%,transparent)',borderRadius:10,padding:'1px 6px'}}>PLAYOFFS</span>}</span>
+        <span className="gc-meta">{game.datetime?gameDateLabel(game):formatShort(game.date)}</span>
+      </div>
+      <div className="gc-body">
+        <div className={`gc-team-row${hasScore?(awayWins?' winner':' loser'):''}`}>
+          <TeamLogo name={game.away} sport={game.sport} size={28} espnId={game.awayTeamId}/>
+          <span className="gc-fullname">{game.away}</span>
+          {hasScore&&<span className="gc-score">{game.awayScore}</span>}
+          {awayWins&&<span className="gc-win-dot"/>}
+        </div>
+        <div className="gc-divider"/>
+        <div className={`gc-team-row${hasScore?(homeWins?' winner':' loser'):''}`}>
+          <TeamLogo name={game.home} sport={game.sport} size={28} espnId={game.homeTeamId}/>
+          <span className="gc-fullname">{game.home}</span>
+          {hasScore&&<span className="gc-score">{game.homeScore}</span>}
+          {homeWins&&<span className="gc-win-dot"/>}
+        </div>
+        {(game.homeSeriesWins!==null&&game.awaySeriesWins!==null)&&(
+          <div style={{borderTop:'1px solid var(--border)',marginTop:4,paddingTop:7,paddingBottom:2}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:4}}>
+              <span style={{fontSize:11,fontWeight:700,color:game.awaySeriesWins>game.homeSeriesWins?'var(--text)':'var(--text3)',flex:1,textAlign:'left'}}>{abbr(game.away)}</span>
+              <span style={{fontSize:13,fontWeight:900,color:game.awaySeriesWins>game.homeSeriesWins?'var(--sport-c,var(--accent))':'var(--text3)'}}>{game.awaySeriesWins}</span>
+              <span style={{fontSize:11,color:'var(--text3)',fontWeight:400,padding:'0 4px'}}>–</span>
+              <span style={{fontSize:13,fontWeight:900,color:game.homeSeriesWins>game.awaySeriesWins?'var(--sport-c,var(--accent))':'var(--text3)'}}>{game.homeSeriesWins}</span>
+              <span style={{fontSize:11,fontWeight:700,color:game.homeSeriesWins>game.awaySeriesWins?'var(--text)':'var(--text3)',flex:1,textAlign:'right'}}>{abbr(game.home)}</span>
+            </div>
+            <div style={{textAlign:'center',fontSize:10,color:'var(--text3)',marginTop:2}}>
+              {game.awaySeriesWins===game.homeSeriesWins?`Tied ${game.awaySeriesWins}-${game.homeSeriesWins}`:game.awaySeriesWins>game.homeSeriesWins?`${abbr(game.away)} leads`:` ${abbr(game.home)} leads`}{game.seriesType?` · ${game.seriesType}`:''}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="gc-foot">
+        {game.status==='in'?<span className="live-badge" style={{fontSize:10,padding:'2px 8px'}}><span className="live-dot"/>LIVE {game.statusDetail||''}</span>:(avg>0?<span className="gc-avg">★ {avg.toFixed(1)}</span>:<span className="gc-avg" style={{color:'var(--text3)'}}>No reviews</span>)}
+        <span className="gc-cnt">{rv.length>0?`${rv.length} review${rv.length!==1?'s':''}`:'Be first'}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── HERO CARD ── */
+function HeroCard({ game, reviews, onPress }) {
+  const rv=reviews.filter(r=>r.gameId===game.id), avg=avgRating(rv), color=getSportColor(game.sport), meta=getSportMeta(game.sport);
+  const leagueLabel = game.league?(LEAGUE_LABELS[game.league]||meta.label):meta.label;
+  const awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore, hasScore=game.homeScore!==undefined;
+  return (
+    <div className={`hero-card sc-${game.sport}`} style={{['--sport-c']:color}} onClick={onPress}>
+      <div className="hero-card-top">
+        <span className="hero-badge">{meta.emoji} {leagueLabel}</span>
+        <span className="hero-date">{formatDate(game.date)}</span>
+        {avg>0&&<Stars rating={avg} size={12}/>}
+      </div>
+      <div className="hero-matchup">
+        <div className="hero-team-side">
+          <TeamLogo name={game.away} sport={game.sport} size={44} espnId={game.awayTeamId}/>
+          <div className="hero-abbr" style={{color:awayWins?'var(--text)':'var(--text3)',marginTop:8}}>{abbr(game.away)}</div>
+          <div className="hero-team-name">{game.away}</div>
+        </div>
+        {hasScore ? (
+          <div className="hero-score-block">
+            <div className="hero-score" style={{color:awayWins?'var(--text)':'var(--text3)'}}>{game.awayScore}</div>
+            <div className="hero-vs">–</div>
+            <div className="hero-score" style={{color:homeWins?'var(--text)':'var(--text3)'}}>{game.homeScore}</div>
+          </div>
+        ) : <div className="hero-vs">vs</div>}
+        <div className="hero-team-side right">
+          <TeamLogo name={game.home} sport={game.sport} size={44} espnId={game.homeTeamId}/>
+          <div className="hero-abbr" style={{color:homeWins?'var(--text)':'var(--text3)',marginTop:8}}>{abbr(game.home)}</div>
+          <div className="hero-team-name">{game.home}</div>
+        </div>
+      </div>
+      <div className="hero-card-bot">
+        <span className="hero-venue">{game.venue||''}</span>
+        <span style={{fontSize:12,color:'var(--text3)'}}>{rv.length} review{rv.length!==1?'s':''}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── MINI CARD ── */
+function MiniCard({ game, reviews, onPress }) {
+  const rv=reviews.filter(r=>r.gameId===game.id), avg=avgRating(rv), color=getSportColor(game.sport), meta=getSportMeta(game.sport);
+  const awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore;
+  return (
+    <div className={`mini-card sc-${game.sport}`} style={{['--sport-c']:color}} onClick={onPress}>
+      <div className="mini-badge">{meta.emoji} {meta.label}</div>
+      <div className="mini-team-row">
+        <TeamLogo name={game.away} sport={game.sport} size={20}/>
+        <span className="mini-abbr" style={{color:awayWins?'var(--text)':'var(--text3)',flex:1,marginLeft:5}}>{abbr(game.away)}</span>
+        {game.awayScore!==undefined&&<span className="mini-score" style={{color:awayWins?'var(--text)':'var(--text3)'}}>{game.awayScore}</span>}
+      </div>
+      <div className="mini-team-row">
+        <TeamLogo name={game.home} sport={game.sport} size={20}/>
+        <span className="mini-abbr" style={{color:homeWins?'var(--text)':'var(--text3)',flex:1,marginLeft:5}}>{abbr(game.home)}</span>
+        {game.homeScore!==undefined&&<span className="mini-score" style={{color:homeWins?'var(--text)':'var(--text3)'}}>{game.homeScore}</span>}
+      </div>
+      <div className="mini-footer">
+        <span className="mini-date">{game.datetime?gameDateLabel(game):formatShort(game.date)}</span>
+        {avg>0&&<Stars rating={avg} size={10}/>}
+      </div>
+    </div>
+  );
+}
+
+/* ── LIKE BUTTON ── */
+function LikeBtn({ reviewId, likes, currentUserId, onToggle }) {
+  const liked = (likes||[]).includes(currentUserId);
+  return (
+    <button className={`like-btn${liked?' liked':''}`} onClick={e=>{e.stopPropagation();onToggle(reviewId);}}>
+      <svg viewBox="0 0 24 24" fill={liked?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+      </svg>
+      {(likes||[]).length > 0 && <span>{(likes||[]).length}</span>}
+    </button>
+  );
+}
+
+/* ── ACTIVITY FEED ── */
+function ActivityFeed({ state, navigate }) {
+  const recent = useMemo(() => [...state.reviews].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,10).map(r=>{const g=state.games.find(g=>g.id===r.gameId);return g?{...r,game:g}:null;}).filter(Boolean),[state.reviews,state.games]);
+  if(!recent.length) return null;
+  const colors=['#ff6b35','#4895ef','#47d98e','#e5383b','#00c3ff','#f0bf3d'];
+  const ac=name=>colors[name.charCodeAt(0)%colors.length];
+  return (
+    <div style={{padding:'0 16px 4px'}}>
+      <div className="section-hd"><span className="section-title">Community</span></div>
+      {recent.map(r=>(
+        <div key={r.id} className="activity-row" onClick={()=>navigate('game',{gameId:r.gameId})}>
+          <div className="activity-avatar" style={{background:`${ac(r.user)}22`,color:ac(r.user)}}>{r.user.charAt(0).toUpperCase()}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+              <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{r.user}</span>
+              <Stars rating={r.rating} size={11}/>
+            </div>
+            <div style={{fontSize:12,color:'var(--text2)',marginBottom:2}}>{abbr(r.game.away)} vs {abbr(r.game.home)}<span style={{marginLeft:5,color:getSportColor(r.game.sport)}}>{getSportMeta(r.game.sport).emoji}</span></div>
+            {r.text&&<div style={{fontSize:12,color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.text}</div>}
+          </div>
+          <div style={{fontSize:11,color:'var(--text3)',flexShrink:0}}>{formatShort(r.date)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── HOME PAGE ── */
+function HomePage({ state, navigate }) {
+  const [sport, setSport] = useState('all');
+  const featured = useMemo(()=>{const rv=state.games.map(g=>({...g,avg:avgRating(state.reviews.filter(r=>r.gameId===g.id)),cnt:state.reviews.filter(r=>r.gameId===g.id).length})).sort((a,b)=>b.cnt-a.cnt);return rv[0]||null;},[state]);
+  const topPicks = useMemo(()=>state.games.map(g=>({...g,avg:avgRating(state.reviews.filter(r=>r.gameId===g.id))})).filter(g=>g.avg>0).sort((a,b)=>b.avg-a.avg).slice(0,8),[state]);
+  const filtered = useMemo(()=>{
+    const ok = g => sport==='all' || g.sport===sport;
+    const reviewedIds = new Set(state.reviews.map(r=>r.gameId));
+    // Self-dedup API games by matchup key (handles ESPN returning same event twice)
+    const seen = new Set();
+    const apiGames = (state.apiGames||[]).filter(ok).filter(g=>{
+      const k=`${g.home}|${g.away}|${g.date}`; if(seen.has(k))return false; seen.add(k); return true;
+    }).sort((a,b)=>{const o={in:0,post:1,pre:2};return(o[a.status]||1)-(o[b.status]||1);});
+    // DB games: exclude anything already in API feed; only show if reviewed OR added <60 days ago
+    const apiIds = new Set(apiGames.map(g=>g.id));
+    const apiKeys = new Set(apiGames.map(g=>`${g.home}|${g.away}|${g.date}`));
+    const cutoff = new Date(Date.now() - 60*24*60*60*1000).toISOString().split('T')[0];
+    const dbGames = state.games
+      .filter(g=>ok(g) && !apiIds.has(g.id) && !apiKeys.has(`${g.home}|${g.away}|${g.date}`) && (reviewedIds.has(g.id) || g.date >= cutoff))
+      .sort((a,b)=>new Date(b.date)-new Date(a.date));
+    return [...apiGames, ...dbGames];
+  },[state.games,state.apiGames,state.reviews,sport]);
+  const followingIds = useMemo(()=>(state.follows||[]).map(f=>f.following_id),[state.follows]);
+  const friendsActivity = useMemo(()=>{if(!followingIds.length)return[];return state.reviews.filter(r=>followingIds.includes(r.userId)).slice(0,8);},[state.reviews,followingIds]);
+  const liveGames = (state.apiGames||[]).filter(g=>g.status==='in'&&(sport==='all'||g.sport===sport));
+  const upcomingGames = (state.apiGames||[]).filter(g=>g.status==='pre'&&(sport==='all'||g.sport===sport)).slice(0,6);
+  return (
+    <div className="page">
+      <div className="app-hd"><div><div className="app-logo">BENCH<span>SCORE</span></div><div className="app-sub">Rate every game</div></div></div>
+      <div style={{position:'sticky',top:0,zIndex:10,background:'var(--bg)',paddingBottom:4,borderBottom:'1px solid var(--border)'}}>
+        <div className="sport-scroll">{SPORTS.map(s=><div key={s.id} className={`s-pill sc-${s.id}${sport===s.id?' active':''}`} onClick={()=>setSport(s.id)}>{s.id!=='all'&&<span className="s-dot"/>}{s.emoji} {s.label}</div>)}</div>
+      </div>
+      {liveGames.length>0&&(
+        <><div className="section-hd" style={{paddingTop:12}}><span style={{display:'flex',alignItems:'center',gap:6}}><span className="live-dot" style={{width:8,height:8}}/><span className="section-title">Live Now</span></span><span className="section-count">{liveGames.length}</span></div>
+        <div className="h-strip">{liveGames.map(g=>(
+          <div key={g.id} className={`mini-card sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}} onClick={()=>navigate('game',{gameId:g.id})}>
+            <div className="mini-badge">{getSportMeta(g.sport).emoji} {g.statusDetail}</div>
+            <div className="mini-team-row"><TeamLogo name={g.away} sport={g.sport} size={18} espnId={g.awayTeamId}/><span className="mini-abbr">{abbr(g.away)}</span><span className="mini-score">{g.awayScore}</span></div>
+            <div className="mini-team-row"><TeamLogo name={g.home} sport={g.sport} size={18} espnId={g.homeTeamId}/><span className="mini-abbr">{abbr(g.home)}</span><span className="mini-score">{g.homeScore}</span></div>
+            {g.homeSeriesWins!==null&&g.awaySeriesWins!==null&&(
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginTop:5,paddingTop:5,borderTop:'1px solid var(--border)',fontSize:10}}>
+                <span style={{fontWeight:700,color:g.awaySeriesWins>g.homeSeriesWins?'var(--sport-c,var(--accent))':'var(--text3)'}}>{abbr(g.away)}</span>
+                <span style={{fontWeight:900,color:g.awaySeriesWins>g.homeSeriesWins?'var(--sport-c,var(--accent))':'var(--text3)'}}>{g.awaySeriesWins}</span>
+                <span style={{color:'var(--text3)',fontSize:9}}>–</span>
+                <span style={{fontWeight:900,color:g.homeSeriesWins>g.awaySeriesWins?'var(--sport-c,var(--accent))':'var(--text3)'}}>{g.homeSeriesWins}</span>
+                <span style={{fontWeight:700,color:g.homeSeriesWins>g.awaySeriesWins?'var(--sport-c,var(--accent))':'var(--text3)'}}>{abbr(g.home)}</span>
+              </div>
+            )}
+          </div>
+        ))}</div></>
+      )}
+      {friendsActivity.length>0&&sport==='all'&&(
+        <div style={{padding:'0 16px 4px'}}>
+          <div className="section-hd" style={{padding:'12px 0 8px'}}><span className="section-title">👥 Friends</span></div>
+          <div className="gap-stack" style={{marginBottom:4}}>
+            {friendsActivity.slice(0,4).map(r=>{
+              const g=state.games.find(g=>g.id===r.gameId);
+              if(!g)return null;
+              return(
+                <div key={r.id} className="activity-row" onClick={()=>navigate('game',{gameId:r.gameId})}>
+                  <div className="activity-avatar" style={{background:getSportColor(g.sport),color:'#000',fontWeight:900}}>{r.user?r.user.charAt(0).toUpperCase():'?'}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700}}>
+                      <span style={{cursor:'pointer',color:'var(--accent)'}} onClick={e=>{e.stopPropagation();navigate('public_profile',{userId:r.userId,username:r.user});}}>{r.user}</span>
+                      {' reviewed '}<span style={{color:'var(--text)'}}>{abbr(g.away)} vs {abbr(g.home)}</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
+                      <Stars rating={r.rating} size={11}/>
+                      {r.text&&<span style={{fontSize:12,color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.text}</span>}
+                    </div>
+                  </div>
+                  <span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport),flexShrink:0}}>{getSportMeta(g.sport).emoji}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {featured&&sport==='all'&&<><div className="section-hd" style={{paddingTop:8}}><span className="section-title">⭐ Featured</span></div><HeroCard game={featured} reviews={state.reviews} onPress={()=>navigate('game',{gameId:featured.id})}/></>}
+      {topPicks.length>0&&sport==='all'&&<><div className="section-hd" style={{paddingTop:14}}><span className="section-title">🏆 Top Rated</span></div><div className="h-strip">{topPicks.map(g=><MiniCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}</div></>}
+      <div className="section-hd" style={{paddingTop:14}}>
+        <span className="section-title">{sport==='all'?'Recent Games':`${getSportMeta(sport).label} Games`}</span>
+        {state.apiLoading?<div className="spinner" style={{width:16,height:16,borderWidth:2}}/>:<span className="section-count">{filtered.length}</span>}
+      </div>
+      <div style={{padding:'0 16px 20px'}} className="gap-stack">
+        {state.apiLoading&&filtered.length===0?(
+          [1,2,3].map(i=><div key={i} style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:16,height:120,animation:'pulse 1.4s infinite',opacity:0.6}}/>)
+        ):filtered.length===0?(
+          <div className="empty"><div className="empty-icon">🏟️</div><p>{sport==='all'?'No games yet':'No recent '+getSportMeta(sport).label+' games'}</p></div>
+        ):filtered.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
+      </div>
+      {sport==='all'&&<ActivityFeed state={state} navigate={navigate}/>}
+    </div>
+  );
+}
+
+/* ── PUBLIC PROFILE PAGE ── */
+function PublicProfilePage({ userId, username, state, dispatch, navigate, showToast }) {
+  const [profileData, setProfileData] = useState(null);
+  const [userReviews, setUserReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isFollowing = (state.follows||[]).some(f=>f.following_id===userId);
+  const isSelf = state.currentUser.id === userId;
+  const followersCount = (state.follows||[]).filter(f=>f.following_id===userId).length;
+
+  useEffect(()=>{
+    async function load() {
+      const [pR,rR] = await Promise.all([
+        sb.from('profiles').select('*').eq('id',userId).single(),
+        sb.from('reviews').select('*').eq('user_id',userId).order('created_at',{ascending:false}),
+      ]);
+      setProfileData(pR.data);
+      setUserReviews((rR.data||[]).map(normalizeReview));
+      setLoading(false);
+    }
+    load();
+  },[userId]);
+
+  const displayName = profileData?.username || username || 'User';
+  const avgR = userReviews.length ? (userReviews.reduce((a,b)=>a+b.rating,0)/userReviews.length).toFixed(1) : '—';
+
+  if(loading) return <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><div className="spinner"/></div>;
+
+  return (
+    <div className="page">
+      <div className="detail-hd">
+        <div className="back-btn" onClick={()=>navigate('home')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Back</div>
+      </div>
+      <div className="profile-hd">
+        <div className="avatar">{displayName.charAt(0).toUpperCase()}</div>
+        <div className="profile-name">{displayName}</div>
+        {!isSelf&&(
+          <button className={"btn btn-sm " + (isFollowing?'btn-ghost':'btn-primary')} style={{margin:'12px auto 0',display:'flex'}}
+            onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId});showToast(isFollowing?'Unfollowed':'Following '+displayName+'!');}}>
+            {isFollowing?'Following ✓':'+ Follow'}
+          </button>
+        )}
+        <div className="profile-stats" style={{marginTop:14}}>
+          <div><div className="stat-num">{userReviews.length}</div><div className="stat-lbl">Reviews</div></div>
+          <div><div className="stat-num">{followersCount}</div><div className="stat-lbl">Followers</div></div>
+          <div><div className="stat-num">{avgR}</div><div className="stat-lbl">Avg ★</div></div>
+        </div>
+      </div>
+      <div style={{height:1,background:'var(--border)'}}/>
+      <div style={{padding:'16px'}} className="gap-stack">
+        {userReviews.length===0
+          ?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet</p></div>
+          :userReviews.map(r=>{
+            const g=state.games.find(g=>g.id===r.gameId);
+            return(
+              <div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:r.gameId})}>
+                {g&&<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                  <div style={{fontSize:13,fontWeight:800}}>{abbr(g.away)} vs {abbr(g.home)}</div>
+                  <span className={"sport-badge sc-"+g.sport} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>
+                </div>}
+                <Stars rating={r.rating} size={13}/>
+                <p className="review-body" style={{marginTop:8}}>{r.text}</p>
+                <div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div>
+              {r.videoUrl&&<VideoPreview url={r.videoUrl}/>}
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}
+
+/* ── SEARCH PAGE ── */
+function SearchPage({ state, navigate }) {
+  const [sport,setSport]=useState(''),[league,setLeague]=useState(''),[ teamA,setTeamA]=useState(''),[ teamB,setTeamB]=useState(''),[ year,setYear]=useState(''),[ month,setMonth]=useState(''),[ results,setResults]=useState(null),[ focusA,setFocusA]=useState(false),[ focusB,setFocusB]=useState(false);
+  const timerA=useRef(null),timerB=useRef(null);
+  const teamPool=useMemo(()=>{let db=[];if(league&&TEAMS_DB[league])db=TEAMS_DB[league];else if(sport)db=[...new Set((LEAGUES[sport]||[]).flatMap(l=>TEAMS_DB[l.id]||[]))];else db=[...new Set(Object.values(TEAMS_DB).flat())];const gt=new Set();(sport?state.games.filter(g=>g.sport===sport):state.games).forEach(g=>{gt.add(g.home);gt.add(g.away);});return[...new Set([...db,...gt])].sort();},[state.games,sport,league]);
+  const suggest=(val,exc)=>{const pool=teamPool.filter(t=>t!==exc);if(!val.trim())return pool.slice(0,7);return pool.filter(t=>t.toLowerCase().includes(val.toLowerCase())).slice(0,8);};
+  const acA=useMemo(()=>focusA?suggest(teamA,teamB):[],[teamA,focusA,teamPool,teamB]);
+  const acB=useMemo(()=>focusB?suggest(teamB,teamA):[],[teamB,focusB,teamPool,teamA]);
+  const leagueOpts=sport?(LEAGUES[sport]||[]):[];
+  useEffect(()=>{if(sport&&!leagueOpts.find(l=>l.id===league))setLeague('');},[sport]);
+  const doSearch=()=>{
+    const match=g=>{
+      if(sport&&g.sport!==sport)return false;
+      if(league&&g.league!==league&&g.sport!==league)return false;
+      if(teamA){const q=teamA.toLowerCase();if(!g.home.toLowerCase().includes(q)&&!g.away.toLowerCase().includes(q))return false;}
+      if(teamB){const q=teamB.toLowerCase();if(!g.home.toLowerCase().includes(q)&&!g.away.toLowerCase().includes(q))return false;}
+      if(year&&!g.date.startsWith(String(year)))return false;
+      if(month){const mi=MONTHS.indexOf(month)+1;if(parseInt(g.date.split('-')[1])!==mi)return false;}
+      return true;
+    };
+    // Merge API games + DB games, dedup by home|away|date
+    const apiMatches=(state.apiGames||[]).filter(match).sort((a,b)=>{const o={in:0,post:1,pre:2};return(o[a.status]||1)-(o[b.status]||1);});
+    const apiKeys=new Set(apiMatches.map(g=>`${g.home}|${g.away}|${g.date}`));
+    const dbMatches=state.games.filter(g=>match(g)&&!apiKeys.has(`${g.home}|${g.away}|${g.date}`)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    setResults([...apiMatches,...dbMatches]);
+  };
+  const doClear=()=>{setSport('');setLeague('');setTeamA('');setTeamB('');setYear('');setMonth('');setResults(null);};
+  const hasFilter=!!(sport||teamA||teamB||year||month);
+  const sportColor=sport?getSportColor(sport):'var(--accent)';
+  const AcList=({items,query,onPick,label})=>(<div className="ac-list"><div className="ac-hdr">{query?`${items.length} result${items.length!==1?'s':''}`:label}</div>{items.map(t=>{const q=query.toLowerCase(),idx=q?t.toLowerCase().indexOf(q):-1;return(<div key={t} className="ac-item" onMouseDown={e=>e.preventDefault()} onClick={()=>onPick(t)}><span>{idx>=0?<>{t.slice(0,idx)}<mark>{t.slice(idx,idx+query.length)}</mark>{t.slice(idx+query.length)}</>:t}</span><span style={{fontSize:12,color:'var(--text3)'}}>›</span></div>);})}</div>);
+  return (
+    <div className="page">
+      <div className="search-hd"><div className="app-logo" style={{fontSize:20,marginBottom:12}}>BENCH<span style={{color:'var(--accent)'}}>SCORE</span></div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10}}>
+          {SPORTS.filter(s=>s.id!=='all').map(s=><div key={s.id} className={`f-pill sc-${s.id}${sport===s.id?' active':''}`} style={{['--sport-c']:getSportColor(s.id)}} onClick={()=>setSport(sport===s.id?'':s.id)}>{s.emoji} {s.label}</div>)}
+        </div>
+        {leagueOpts.length>1&&<div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:10}}>{leagueOpts.map(l=><div key={l.id} className={`f-pill${league===l.id?' active':''}`} onClick={()=>setLeague(league===l.id?'':l.id)}>{l.label}</div>)}</div>}
+        <div style={{display:'flex',gap:8,marginBottom:10}}>
+          <div className="team-ac-wrap" style={{flex:1}}>
+            <input className="search-input" value={teamA} onChange={e=>setTeamA(e.target.value)} placeholder="Team or player…" onFocus={()=>setFocusA(true)} onBlur={()=>{timerA.current=setTimeout(()=>setFocusA(false),150);}}/>
+            {acA.length>0&&<AcList items={acA} query={teamA} onPick={t=>{setTeamA(t);setFocusA(false);}} label="Suggestions"/>}
+          </div>
+          <div className="team-ac-wrap" style={{flex:1}}>
+            <input className="search-input" value={teamB} onChange={e=>setTeamB(e.target.value)} placeholder="vs. opponent…" onFocus={()=>setFocusB(true)} onBlur={()=>{timerB.current=setTimeout(()=>setFocusB(false),150);}}/>
+            {acB.length>0&&<AcList items={acB} query={teamB} onPick={t=>{setTeamB(t);setFocusB(false);}} label="Suggestions"/>}
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8,marginBottom:12}}>
+          <input value={year} onChange={e=>setYear(e.target.value)} placeholder="Year" type="number" style={{flex:1}}/>
+          <select value={month} onChange={e=>setMonth(e.target.value)} style={{flex:1}}><option value="">Month</option>{MONTHS.map(m=><option key={m}>{m}</option>)}</select>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          <button className="btn btn-primary" style={{flex:1,background:sportColor,color:'#000'}} onClick={doSearch}>Search</button>
+          {hasFilter&&<button className="btn btn-ghost btn-sm" onClick={doClear}>Clear</button>}
+        </div>
+      </div>
+      <div style={{padding:'12px 16px 20px'}} className="gap-stack">
+        {results===null?<div className="empty" style={{paddingTop:20}}><div className="empty-icon">🔍</div><p>Filter by sport, team,<br/>year, or month above</p></div>:results.length===0?<div className="empty"><div className="empty-icon">😕</div><p>No games match<br/>your search</p></div>:results.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
+      </div>
+    </div>
+  );
+}
+
+/* ── REVIEW SHEET ── */
+function ReviewSheet({ game, onClose, onSubmit, existing }) {
+  const [rating,setRating]=useState(existing?.rating||0);
+  const [text,setText]=useState(existing?.text||'');
+  const [videoUrl,setVideoUrl]=useState(existing?.videoUrl||'');
+  const color=getSportColor(game.sport);
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div style={{fontSize:17,fontWeight:800,marginBottom:4}}>{existing?'Edit Review':'Write a Review'}</div>
+        <div style={{fontSize:13,color:'var(--text3)',marginBottom:20}}>{abbr(game.away)} vs {abbr(game.home)}</div>
+        <div className="t-micro" style={{marginBottom:8,textAlign:'center'}}>Your Rating</div>
+        <div className="star-picker">{[1,2,3,4,5].map(i=><span key={i} className="star-pick" onClick={()=>setRating(i)} style={{opacity:i<=rating?1:0.3}}>{i<=rating?'★':'☆'}</span>)}</div>
+        <div className="t-micro" style={{margin:'16px 0 8px'}}>Your Review <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional</span></div>
+        <textarea rows={4} value={text} onChange={e=>setText(e.target.value)} placeholder="What made this game memorable?"/>
+        <div className="t-micro" style={{margin:'12px 0 8px'}}>Clip URL <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional</span></div>
+        <input value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder="YouTube link"/>
+        <button className="btn btn-primary btn-full" style={{marginTop:20,opacity:rating?1:0.35,background:color,color:'#000'}} onClick={()=>rating&&onSubmit({rating,text,videoUrl})}>
+          {existing?'Update Review':'Submit Review'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+/* ── SERIES EDITOR ── */
+function SeriesEditor({ game, onSave, onClose }) {
+  const [awayW, setAwayW] = useState(game.awaySeriesWins??0);
+  const [homeW, setHomeW] = useState(game.homeSeriesWins??0);
+  const [seriesType, setSeriesType] = useState(game.seriesType||'Best of 7');
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div style={{fontSize:17,fontWeight:800,marginBottom:4}}>Edit Series Score</div>
+        <div style={{fontSize:13,color:'var(--text3)',marginBottom:20}}>{abbr(game.away)} vs {abbr(game.home)}</div>
+        <div className="t-micro" style={{marginBottom:8}}>Series Format</div>
+        <div style={{display:'flex',gap:8,marginBottom:16}}>
+          {['Best of 5','Best of 7'].map(t=>(
+            <div key={t} onClick={()=>setSeriesType(t)} style={{flex:1,textAlign:'center',padding:'8px',borderRadius:10,border:'1.5px solid',borderColor:seriesType===t?'var(--accent)':'var(--border)',background:seriesType===t?'color-mix(in srgb,var(--accent) 12%,transparent)':'var(--s3)',color:seriesType===t?'var(--accent)':'var(--text3)',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              {t}
+            </div>
+          ))}
+        </div>
+        <div className="t-micro" style={{marginBottom:12}}>Series Wins</div>
+        <div style={{display:'flex',alignItems:'center',gap:16,justifyContent:'center',marginBottom:24}}>
+          <div style={{flex:1,textAlign:'center'}}>
+            <div style={{fontSize:12,color:'var(--text3)',marginBottom:8,fontWeight:600}}>{abbr(game.away)}</div>
+            <div style={{display:'flex',alignItems:'center',gap:12,justifyContent:'center'}}>
+              <button onClick={()=>setAwayW(w=>Math.max(0,w-1))} style={{width:36,height:36,borderRadius:18,border:'1.5px solid var(--border)',background:'var(--s3)',color:'var(--text)',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+              <span style={{fontSize:40,fontWeight:900,minWidth:30,textAlign:'center'}}>{awayW}</span>
+              <button onClick={()=>setAwayW(w=>w+1)} style={{width:36,height:36,borderRadius:18,border:'1.5px solid var(--border)',background:'var(--s3)',color:'var(--text)',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+            </div>
+          </div>
+          <div style={{fontSize:24,color:'var(--text3)',fontWeight:300,paddingTop:20}}>–</div>
+          <div style={{flex:1,textAlign:'center'}}>
+            <div style={{fontSize:12,color:'var(--text3)',marginBottom:8,fontWeight:600}}>{abbr(game.home)}</div>
+            <div style={{display:'flex',alignItems:'center',gap:12,justifyContent:'center'}}>
+              <button onClick={()=>setHomeW(w=>Math.max(0,w-1))} style={{width:36,height:36,borderRadius:18,border:'1.5px solid var(--border)',background:'var(--s3)',color:'var(--text)',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+              <span style={{fontSize:40,fontWeight:900,minWidth:30,textAlign:'center'}}>{homeW}</span>
+              <button onClick={()=>setHomeW(w=>w+1)} style={{width:36,height:36,borderRadius:18,border:'1.5px solid var(--border)',background:'var(--s3)',color:'var(--text)',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+            </div>
+          </div>
+        </div>
+        <button className="btn btn-primary btn-full" onClick={()=>onSave({awaySeriesWins:awayW,homeSeriesWins:homeW,seriesType,isPlayoff:true})}>
+          Save Series Score
+        </button>
+        <button className="btn btn-ghost btn-full" style={{marginTop:8}} onClick={()=>onSave({awaySeriesWins:null,homeSeriesWins:null,seriesType:'',isPlayoff:false})}>
+          Remove Series Info
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── GAME DETAIL PAGE ── */
+function GamePage({ gameId, state, dispatch, navigate, showToast }) {
+  const [showReview,setShowReview]=useState(false);
+  const [showSeriesEditor,setShowSeriesEditor]=useState(false);
+  const [reviewSort,setReviewSort]=useState('recent');
+  const [showVidIdx,setShowVidIdx]=useState(null);
+  const game=state.games.find(g=>g.id===gameId);
+  if(!game)return <div style={{padding:32,textAlign:'center',color:'var(--text3)'}}>Game not found</div>;
+  const reviews=state.reviews.filter(r=>r.gameId===gameId);
+  const avg=avgRating(reviews), inWL=state.watchlist.includes(gameId);
+  const myReview=reviews.find(r=>r.userId===state.currentUser.id);
+  const color=getSportColor(game.sport), meta=getSportMeta(game.sport);
+  const awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore;
+  const toggleWL=()=>{dispatch({type:inWL?'REMOVE_WATCHLIST':'ADD_WATCHLIST',gameId});showToast(inWL?'Removed from saved':'✓ Saved');};
+  const submitReview=({rating,text,videoUrl})=>{
+    dispatch({type:'ADD_REVIEW',review:{id:'r_'+Date.now(),gameId,userId:state.currentUser.id,user:state.currentUser.name,rating,text,videoUrl,date:new Date().toISOString().split('T')[0]}});
+    setShowReview(false);showToast('✓ Review saved!');
+  };
+  const videos=[...(game.videoUrl?[{url:game.videoUrl,label:'Game Highlights'}]:[]),...reviews.filter(r=>r.videoUrl).map(r=>({url:r.videoUrl,label:`${r.user}'s clip`}))];
+  const saveSeries=async({awaySeriesWins,homeSeriesWins,seriesType,isPlayoff})=>{
+    dispatch({type:'UPDATE_GAME_SERIES',gameId,awaySeriesWins,homeSeriesWins,seriesType,isPlayoff});
+    setShowSeriesEditor(false);showToast('✓ Series score updated');
+  };
+  return (
+    <div className="page">
+      <div className="detail-hd">
+        <div className="back-btn" onClick={()=>navigate('home')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Back</div>
+      </div>
+      <div className="detail-sport-bar" style={{['--sport-c']:color}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+          <span className={`sport-badge sc-${game.sport}`} style={{['--sport-c']:color}}>{meta.emoji} {meta.label}</span>
+          {game.status==='in'&&<span className="live-badge"><span className="live-dot"/>LIVE</span>}
+          <span style={{fontSize:12,color:'var(--text3)'}}>{game.datetime?gameDateLabel(game):formatDate(game.date)}</span>
+          {game.venue&&<span style={{fontSize:12,color:'var(--text3)'}}>· {game.venue}</span>}
+        </div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          {avg>0?<div style={{display:'flex',alignItems:'center',gap:6}}><Stars rating={avg} size={14}/><span style={{fontSize:13,color:'var(--text2)',fontWeight:600}}>{avg.toFixed(1)} ({reviews.length})</span></div>:<span style={{fontSize:12,color:'var(--text3)'}}>No reviews yet</span>}
+          <button className={`wl-btn${inWL?' saved':''}`} onClick={toggleWL}>{inWL?'✓ Saved':'☆ Save'}</button>
+        </div>
+      </div>
+      <div className="detail-matchup">
+        <div className="detail-team-col">
+          <TeamLogo name={game.away} sport={game.sport} size={56} espnId={game.awayTeamId}/>
+          <div className="detail-team-abbr" style={{color:awayWins?'var(--text)':'var(--text2)',marginTop:10}}>{abbr(game.away)}</div>
+          <div className="detail-team-name">{game.away}</div>
+        </div>
+        <div className="detail-score-mid">
+          {game.awayScore!==undefined?<div className="detail-score">{game.awayScore}–{game.homeScore}</div>:<div className="detail-vs">vs</div>}
+        </div>
+        <div className="detail-team-col">
+          <TeamLogo name={game.home} sport={game.sport} size={56} espnId={game.homeTeamId}/>
+          <div className="detail-team-abbr" style={{color:homeWins?'var(--text)':'var(--text2)',marginTop:10}}>{abbr(game.home)}</div>
+          <div className="detail-team-name">{game.home}</div>
+        </div>
+      </div>
+      {(game.homeSeriesWins!==null&&game.awaySeriesWins!==null)&&(
+        <div style={{margin:'0 16px 12px',background:'color-mix(in srgb,var(--accent) 8%,transparent)',border:'1px solid color-mix(in srgb,var(--accent) 25%,transparent)',borderRadius:14,padding:'10px 16px'}}>
+          <div style={{textAlign:'center',fontSize:11,fontWeight:700,color:'var(--accent)',letterSpacing:0.5,marginBottom:8,textTransform:'uppercase'}}>{game.seriesType||'Playoff Series'}</div>
+          {(()=>{
+            const awayLeads=game.awaySeriesWins>game.homeSeriesWins;
+            const homeLeads=game.homeSeriesWins>game.awaySeriesWins;
+            const tied=game.awaySeriesWins===game.homeSeriesWins;
+            const leaderColor='var(--sport-c,var(--accent))';
+            const loserColor='var(--text3)';
+            const headline=tied?`Series tied ${game.awaySeriesWins}-${game.homeSeriesWins}`:awayLeads?`${abbr(game.away)} leads the series`:` ${abbr(game.home)} leads the series`;
+            return (<>
+              <div style={{textAlign:'center',fontSize:13,fontWeight:700,color:'var(--text)',marginBottom:12}}>{headline}</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                <div style={{flex:1,textAlign:'center'}}>
+                  <div style={{fontSize:14,fontWeight:800,color:awayLeads?'var(--text)':'var(--text2)',marginBottom:4}}>{abbr(game.away)}</div>
+                  <div style={{fontSize:48,fontWeight:900,color:awayLeads?leaderColor:loserColor,lineHeight:1}}>{game.awaySeriesWins}</div>
+                  {awayLeads&&<div style={{fontSize:9,fontWeight:700,color:'var(--accent)',marginTop:4,textTransform:'uppercase',letterSpacing:0.5}}>leads</div>}
+                </div>
+                <div style={{color:'var(--text3)',fontSize:22,fontWeight:200}}>–</div>
+                <div style={{flex:1,textAlign:'center'}}>
+                  <div style={{fontSize:14,fontWeight:800,color:homeLeads?'var(--text)':'var(--text2)',marginBottom:4}}>{abbr(game.home)}</div>
+                  <div style={{fontSize:48,fontWeight:900,color:homeLeads?leaderColor:loserColor,lineHeight:1}}>{game.homeSeriesWins}</div>
+                  {homeLeads&&<div style={{fontSize:9,fontWeight:700,color:'var(--accent)',marginTop:4,textTransform:'uppercase',letterSpacing:0.5}}>leads</div>}
+                </div>
+              </div>
+            </>);
+          })()}
+          <button className="btn btn-ghost btn-sm" style={{margin:'8px auto 0',display:'flex',fontSize:11}} onClick={()=>setShowSeriesEditor(true)}>✏️ Edit</button>
+        </div>
+      )}
+      {!(game.homeSeriesWins!==null&&game.awaySeriesWins!==null)&&(game.awayRecord||game.homeRecord||game.seriesInfo)&&(
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 20px 8px',gap:8}}>
+          <span style={{fontSize:12,color:'var(--text3)',flex:1,textAlign:'center'}}>{game.awayRecord||''}</span>
+          {game.seriesInfo&&<span style={{fontSize:11,fontWeight:700,color:'var(--accent)',background:'color-mix(in srgb,var(--accent) 12%,transparent)',borderRadius:20,padding:'2px 10px',flexShrink:0}}>{game.seriesInfo}</span>}
+          <span style={{fontSize:12,color:'var(--text3)',flex:1,textAlign:'center'}}>{game.homeRecord||''}</span>
+        </div>
+      )}
+      <div style={{display:'flex',justifyContent:'center',paddingBottom:4}}>
+        <button className="btn btn-ghost btn-sm" style={{fontSize:11,gap:4}} onClick={()=>setShowSeriesEditor(true)}>
+          🏆 {game.isPlayoff?'Edit Series Score':'+ Add Series Score'}
+        </button>
+      </div>
+      <div style={{padding:'0 16px'}}>
+        {game.description&&<p style={{fontSize:14,color:'var(--text2)',lineHeight:1.6,marginTop:14}}>{game.description}</p>}
+        {(game.tags||[]).length>0&&<div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:12}}>{game.tags.map(t=><span key={t} className="tag-chip">#{t}</span>)}</div>}
+      </div>
+      <div style={{height:1,background:'var(--border)',margin:'16px 0'}}/>
+      {videos.length>0&&(
+        <div style={{padding:'0 16px 0'}}>
+          <div style={{fontSize:15,fontWeight:800,marginBottom:14}}>📼 Archive</div>
+          <div className="gap-stack">
+            {videos.map((v,i)=>{const ytId=getYtId(v.url);if(!ytId)return null;return showVidIdx===i?(<div key={i}><div style={{fontSize:11,color:'var(--text3)',marginBottom:6}}>{v.label}</div><div className="vid-embed"><iframe src={`https://www.youtube.com/embed/${ytId}?autoplay=1`} allowFullScreen allow="autoplay"/></div></div>):(<div key={i} className="vid-thumb" onClick={()=>setShowVidIdx(i)}><img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`} alt={v.label} onError={e=>e.target.style.display='none'}/><div className="vid-play-btn">▶</div><div className="vid-label">{v.label}</div></div>);})}
+          </div>
+        </div>
+      )}
+      <div style={{padding:'20px 16px 0'}}>
+        {reviews.length>0&&(
+          <div style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:14,padding:'12px 14px',marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+              <div style={{fontSize:30,fontWeight:900,color:'var(--accent)',lineHeight:1}}>{avgRating(reviews).toFixed(1)}</div>
+              <div><Stars rating={avgRating(reviews)} size={16}/><div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>{reviews.length} review{reviews.length!==1?'s':''}</div></div>
+            </div>
+            {[5,4,3,2,1].map(star=>{const cnt=reviews.filter(r=>r.rating===star).length;const pct=reviews.length?Math.round(cnt/reviews.length*100):0;return(
+              <div key={star} style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+                <span style={{fontSize:10,color:'var(--text3)',width:10,textAlign:'right',flexShrink:0}}>{star}</span>
+                <div style={{flex:1,height:5,background:'var(--s3)',borderRadius:3,overflow:'hidden'}}>
+                  <div style={{width:pct+'%',height:'100%',background:'var(--accent)',borderRadius:3}}/>
+                </div>
+                <span style={{fontSize:10,color:'var(--text3)',width:16,textAlign:'right',flexShrink:0}}>{cnt}</span>
+              </div>
+            );})}
+          </div>
+        )}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <div style={{fontSize:15,fontWeight:800}}>Reviews</div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            {reviews.length>1&&<select value={reviewSort} onChange={e=>setReviewSort(e.target.value)} style={{background:'var(--s3)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text2)',fontSize:12,padding:'4px 8px',width:'auto'}}>
+              <option value="recent">Recent</option>
+              <option value="top">Top rated</option>
+              <option value="low">Lowest</option>
+            </select>}
+            <button className="btn btn-ghost btn-sm" onClick={()=>setShowReview(true)}>{myReview?'✏️ Edit':'+ Write'}</button>
+          </div>
+        </div>
+        {reviews.length===0?<div className="empty" style={{paddingTop:24}}><div className="empty-icon">💬</div><p>Be the first to review this game</p></div>:(
+          <div className="gap-stack" style={{paddingBottom:20}}>
+            {[...reviews].sort((a,b)=>reviewSort==='top'?b.rating-a.rating:reviewSort==='low'?a.rating-b.rating:new Date(b.date)-new Date(a.date)).map(r=>(
+              <div key={r.id} className="review-card">
+                <div className="review-card-top">
+                  <div><div className="reviewer-name" onClick={r.userId!==state.currentUser.id?()=>navigate('public_profile',{userId:r.userId,username:r.user}):undefined} style={r.userId!==state.currentUser.id?{cursor:'pointer',color:'var(--accent)'}:{}}>{r.userId===state.currentUser.id?<span style={{color:'var(--accent)'}}>⭐ {state.currentUser.name}</span>:r.user}</div><Stars rating={r.rating} size={12}/></div>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span className="review-date">{formatDate(r.date)}</span>
+                    {r.userId===state.currentUser.id&&<button onClick={()=>{if(window.confirm('Delete your review?')){dispatch({type:'DELETE_REVIEW',reviewId:r.id});showToast('Review deleted');}}} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text3)',fontSize:14}}>🗑</button>}
+                  </div>
+                </div>
+                <p className="review-body">{r.text}</p>
+                {r.videoUrl&&<VideoPreview url={r.videoUrl}/>}
+                <LikeBtn reviewId={r.id} likes={r.likes} currentUserId={state.currentUser.id} onToggle={id=>dispatch({type:'TOGGLE_LIKE',reviewId:id})}/>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {showReview&&<ReviewSheet game={game} existing={myReview} onClose={()=>setShowReview(false)} onSubmit={submitReview}/>}
+      {showSeriesEditor&&<SeriesEditor game={game} onSave={saveSeries} onClose={()=>setShowSeriesEditor(false)}/>}
+    </div>
+  );
+}
+
+/* ── LEADERBOARD PAGE ── */
+function LeaderboardPage({ state, navigate }) {
+  const [sport,setSport]=useState('all');
+  const ranked=useMemo(()=>state.games.filter(g=>sport==='all'||g.sport===sport).map(g=>{const rv=state.reviews.filter(r=>r.gameId===g.id);return{...g,avg:avgRating(rv),cnt:rv.length};}).filter(g=>g.cnt>0).sort((a,b)=>b.avg!==a.avg?b.avg-a.avg:b.cnt-a.cnt),[state,sport]);
+  const followingIds = useMemo(()=>(state.follows||[]).map(f=>f.following_id),[state.follows]);
+  const friendsActivity = useMemo(()=>{if(!followingIds.length)return[];return state.reviews.filter(r=>followingIds.includes(r.userId)).slice(0,8);},[state.reviews,followingIds]);
+  const rankStyle=i=>i===0?'gold':i===1?'silver':i===2?'bronze':'';
+  const rankEmoji=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1;
+  return (
+    <div className="page">
+      <div className="app-hd"><div><div className="app-logo">BENCH<span>SCORE</span></div><div className="app-sub">Top rated games</div></div><span style={{fontSize:24}}>🏆</span></div>
+      {friendsActivity.length>0&&sport==='all'&&(
+        <div style={{padding:'0 16px 4px'}}>
+          <div className="section-hd" style={{padding:'8px 0'}}><span className="section-title">👥 Friends</span></div>
+          <div className="gap-stack" style={{marginBottom:4}}>
+            {friendsActivity.slice(0,4).map(r=>{
+              const g=state.games.find(g=>g.id===r.gameId);
+              if(!g)return null;
+              return(
+                <div key={r.id} className="activity-row" onClick={()=>navigate('game',{gameId:r.gameId})}>
+                  <div className="activity-avatar" style={{background:getSportColor(g.sport),color:'#000',fontWeight:900}}>{r.user?r.user.charAt(0).toUpperCase():'?'}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700}}>
+                      <span style={{cursor:'pointer',color:'var(--accent)'}} onClick={e=>{e.stopPropagation();navigate('public_profile',{userId:r.userId,username:r.user});}}>{r.user}</span>
+                      {' reviewed '}<span style={{color:'var(--text)'}}>{abbr(g.away)} vs {abbr(g.home)}</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginTop:2}}>
+                      <Stars rating={r.rating} size={11}/>
+                      {r.text&&<span style={{fontSize:12,color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.text}</span>}
+                    </div>
+                  </div>
+                  <span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport),flexShrink:0}}>{getSportMeta(g.sport).emoji}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      <div className="sport-scroll">{SPORTS.map(s=><div key={s.id} className={`s-pill sc-${s.id}${sport===s.id?' active':''}`} onClick={()=>setSport(s.id)}>{s.id!=='all'&&<span className="s-dot"/>}{s.emoji} {s.label}</div>)}</div>
+      <div style={{padding:'0 16px 20px'}} className="gap-stack">
+        {ranked.length===0?<div className="empty"><div className="empty-icon">🏆</div><p>No rated games yet.<br/>Go review some!</p></div>:ranked.map((g,i)=>(
+          <div key={g.id} className={`lb-row sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}} onClick={()=>navigate('game',{gameId:g.id})}>
+            <div className={`lb-rank ${rankStyle(i)}`}>{rankEmoji(i)}</div>
+            <div className="lb-info"><div className="lb-teams">{abbr(g.away)} vs {abbr(g.home)}</div><div className="lb-meta"><span style={{color:getSportColor(g.sport)}}>{getSportMeta(g.sport).label}</span>{' · '}{formatShort(g.date)}</div></div>
+            <div className="lb-right"><div className="lb-avg">{g.avg.toFixed(1)} ★</div><div className="lb-cnt">{g.cnt} review{g.cnt!==1?'s':''}</div></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── PROFILE PAGE ── */
+function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
+  const [tab,setTab]=useState('reviews');
+  const [editing,setEditing]=useState(false);
+  const [nameVal,setNameVal]=useState(state.currentUser.name);
+  const myReviews=state.reviews.filter(r=>r.userId===state.currentUser.id);
+  const watchGames=state.games.filter(g=>state.watchlist.includes(g.id));
+  const avgMine=myReviews.length?(myReviews.reduce((a,b)=>a+b.rating,0)/myReviews.length).toFixed(1):'—';
+  const followingCount=(state.follows||[]).filter(f=>f.follower_id===state.currentUser.id).length;
+  const saveName=()=>{if(nameVal.trim()){dispatch({type:'SET_USER_NAME',name:nameVal.trim()});setEditing(false);showToast('✓ Profile updated');}};
+  return (
+    <div className="page">
+      <div className="profile-hd">
+        <div className="avatar">{state.currentUser.name.charAt(0).toUpperCase()}</div>
+        {editing?(<div style={{display:'flex',gap:8,maxWidth:240,margin:'0 auto 6px'}}><input value={nameVal} onChange={e=>setNameVal(e.target.value)} style={{textAlign:'center'}} onKeyDown={e=>e.key==='Enter'&&saveName()}/><button className="btn btn-primary btn-sm" onClick={saveName}>Save</button></div>):(<div className="profile-name" onClick={()=>setEditing(true)} style={{cursor:'pointer',marginBottom:4}}>{state.currentUser.name} <span style={{fontSize:14,opacity:0.5}}>✏️</span></div>)}
+        <div style={{fontSize:12,color:'var(--text3)'}}>Tap name to edit</div>
+        <div className="profile-stats">
+          <div><div className="stat-num">{myReviews.length}</div><div className="stat-lbl">Reviews</div></div>
+          <div><div className="stat-num">{followingCount}</div><div className="stat-lbl">Following</div></div>
+          <div><div className="stat-num">{watchGames.length}</div><div className="stat-lbl">Saved</div></div>
+          <div><div className="stat-num">{avgMine}</div><div className="stat-lbl">Avg ★</div></div>
+        </div>
+        <button className="btn btn-ghost btn-sm" style={{margin:'8px auto 16px',display:'flex'}} onClick={onSignOut}>Sign Out</button>
+      </div>
+      <div className="tab-bar">{[['reviews',`Reviews (${myReviews.length})`],['saved',`Saved (${watchGames.length})`]].map(([id,lbl])=><div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>)}</div>
+      <div style={{padding:'16px'}} className="gap-stack">
+        {tab==='reviews'?myReviews.length===0?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet — go rate a game!</p></div>:myReviews.map(r=>{const g=state.games.find(g=>g.id===r.gameId);if(!g)return null;return(<div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:g.id})}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}><div style={{fontSize:13,fontWeight:800}}>{abbr(g.away)} vs {abbr(g.home)}</div><span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span></div><Stars rating={r.rating} size={13}/><p className="review-body" style={{marginTop:8}}>{r.text}</p><div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div></div>);})
+        :watchGames.length===0?<div className="empty"><div className="empty-icon">⭐</div><p>No saved games yet.<br/>Tap ☆ Save on any game.</p></div>:watchGames.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
+      </div>
+    </div>
+  );
+}
+
+/* ── ADD GAME SHEET ── */
+function AddGameSheet({ onClose, onSelect }) {
+  const [sport,setSport]=useState('nba');
+  const [apiGames,setApiGames]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [query,setQuery]=useState('');
+
+  const [league,setLeague]=useState('');
+  const activeLeague = sport==='soccer'?(league||'epl'):sport;
+  useEffect(()=>{ setLeague(''); },[sport]);
+  useEffect(()=>{
+    setLoading(true); setApiGames([]);
+    fetchLeagueGames(activeLeague).then(gs=>{setApiGames(gs);setLoading(false);});
+  },[activeLeague]);
+
+  const filtered=query.trim()?apiGames.filter(g=>g.home.toLowerCase().includes(query.toLowerCase())||g.away.toLowerCase().includes(query.toLowerCase())):apiGames;
+
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div style={{fontSize:18,fontWeight:800,marginBottom:14}}>Find a Game</div>
+        <div className="sport-scroll" style={{padding:'0 0 8px',margin:'0 -16px',paddingLeft:16}}>
+          {SPORTS.filter(s=>s.id!=='all').map(s=>(
+            <div key={s.id} className={`f-pill sc-${s.id}${sport===s.id?' active':''}`} style={{['--sport-c']:getSportColor(s.id)}} onClick={()=>setSport(s.id)}>
+              {s.emoji} {s.label}
+            </div>
+          ))}
+        </div>
+        {sport==='soccer'&&(
+          <div className="sport-scroll" style={{padding:'0 0 10px',margin:'0 -16px',paddingLeft:16}}>
+            {[{id:'epl',label:'Premier League'},{id:'laliga',label:'La Liga'},{id:'mls',label:'MLS'},{id:'ucl',label:'UCL'},{id:'seriea',label:'Serie A'},{id:'bundesliga',label:'Bundesliga'}].map(l=>(
+              <div key={l.id} className={`f-pill sc-${l.id}${(league||'epl')===l.id?' active':''}`} style={{['--sport-c']:getSportColor('soccer')}} onClick={()=>setLeague(l.id)}>
+                {l.label}
+              </div>
+            ))}
+          </div>
+        )}
+        <input className="search-input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Filter by team…" style={{marginBottom:12}}/>
+        {loading?(
+          <div style={{display:'flex',justifyContent:'center',padding:32}}><div className="spinner"/></div>
+        ):filtered.length===0?(
+          <div className="empty"><div className="empty-icon">🏟️</div><p>No games found today</p></div>
+        ):(
+          <div className="gap-stack" style={{maxHeight:'55vh',overflowY:'auto',paddingBottom:8}}>
+            {filtered.map(g=>(
+              <div key={g.id} className="game-card" style={{['--sport-c']:getSportColor(g.sport)}} onClick={()=>onSelect(g)}>
+                <div className="gc-head">
+                  <span className="gc-sport">{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>
+                  <span className="gc-meta">{g.status==='in'?<span className="live-badge"><span className="live-dot"/>LIVE {g.statusDetail}</span>:gameDateLabel(g)}</span>
+                </div>
+                <div className="gc-body">
+                  <div className={`gc-team-row${g.awayScore!==undefined&&g.awayScore>g.homeScore?' winner':''}`}>
+                    <TeamLogo name={g.away} sport={g.sport} size={22} espnId={g.awayTeamId}/>
+                    <span className="gc-fullname">{g.away}</span>
+                    {g.awayScore!==undefined&&<span className="gc-score">{g.awayScore}</span>}
+                    {g.awayScore!==undefined&&g.awayScore>g.homeScore&&<span className="gc-win-dot"/>}
+                  </div>
+                  <div className={`gc-team-row${g.homeScore!==undefined&&g.homeScore>g.awayScore?' winner':''}`}>
+                    <TeamLogo name={g.home} sport={g.sport} size={22} espnId={g.homeTeamId}/>
+                    <span className="gc-fullname">{g.home}</span>
+                    {g.homeScore!==undefined&&<span className="gc-score">{g.homeScore}</span>}
+                    {g.homeScore!==undefined&&g.homeScore>g.awayScore&&<span className="gc-win-dot"/>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── AUTH PAGE ── */
+function AuthPage({ onAuth }) {
+  const [mode,setMode]=useState('signin');
+  const [email,setEmail]=useState('');
+  const [password,setPassword]=useState('');
+  const [username,setUsername]=useState('');
+  const [fav,setFav]=useState('nba');
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState('');
+  const color=getSportColor(fav);
+
+  const submit=async()=>{
+    setError('');setLoading(true);
+    try {
+      if(mode==='signup'){
+        if(username.trim().length<2){setError('Username needs at least 2 characters');setLoading(false);return;}
+        const{data,error:e}=await sb.auth.signUp({email,password,options:{data:{username:username.trim(),fav_sport:fav}}});
+        if(e)throw e;
+        if(data.session)onAuth(data.session);
+        else setError('Check your email to confirm your account, then sign in.');
+      } else {
+        const{data,error:e}=await sb.auth.signInWithPassword({email,password});
+        if(e)throw e;
+        onAuth(data.session);
+      }
+    } catch(e){ setError(e.message); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="onboard-wrap">
+      <div className="onboard-logo">BENCH<span>SCORE</span></div>
+      <div className="onboard-sub">Rate. Review. Relive.</div>
+      <div className="onboard-card">
+        <div className="onboard-q">{mode==='signup'?'Create account':'Welcome back'}</div>
+        <div className="onboard-hint">{mode==='signup'?'Join the community':'Sign in to your account'}</div>
+        {mode==='signup'&&(<><div className="t-micro" style={{marginBottom:8}}>Username</div><input value={username} onChange={e=>setUsername(e.target.value)} placeholder="e.g. CourtKing99" style={{marginBottom:14}}/></>)}
+        <div className="t-micro" style={{marginBottom:8}}>Email</div>
+        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" style={{marginBottom:14}}/>
+        <div className="t-micro" style={{marginBottom:8}}>Password</div>
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" style={{marginBottom:mode==='signup'?14:20}} onKeyDown={e=>e.key==='Enter'&&submit()}/>
+        {mode==='signup'&&(<><div className="t-micro" style={{marginBottom:10}}>Favorite sport</div><div style={{display:'flex',gap:7,marginBottom:20,flexWrap:'wrap'}}>{SPORT_PICKS.map(s=><div key={s.id} onClick={()=>setFav(s.id)} style={{flex:'1 1 auto',padding:'7px 4px',borderRadius:10,textAlign:'center',background:fav===s.id?`${getSportColor(s.id)}22`:'var(--s3)',border:`1.5px solid ${fav===s.id?getSportColor(s.id):'transparent'}`,cursor:'pointer',fontSize:10,fontWeight:700,color:fav===s.id?getSportColor(s.id):'var(--text2)',transition:'all 0.15s'}}><div style={{fontSize:18,marginBottom:2}}>{s.emoji}</div>{s.label}</div>)}</div></>)}
+        {error&&<div style={{color:'var(--red)',fontSize:12,marginBottom:12,textAlign:'center',lineHeight:1.4}}>{error}</div>}
+        <button className="btn btn-primary btn-full" style={{background:mode==='signup'?color:'var(--accent)',color:'#000',fontWeight:800,fontSize:15,opacity:loading?0.6:1}} onClick={submit} disabled={loading}>
+          {loading?'Loading…':mode==='signup'?'Create account':'Sign in'}
+        </button>
+        <div style={{textAlign:'center',marginTop:16,fontSize:13,color:'var(--text3)'}}>
+          {mode==='signup'?'Already have an account? ':"Don't have an account? "}
+          <span style={{color:'var(--accent)',cursor:'pointer',fontWeight:600}} onClick={()=>{setMode(m=>m==='signup'?'signin':'signup');setError('');}}>
+            {mode==='signup'?'Sign in':'Sign up'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ROOT APP ── */
+function App() {
+  const [session,  setSession]   = useState(null);
+  const [profile,  setProfile]   = useState(null);
+  const [games,    setGames]     = useState([]);
+  const [reviews,  setReviews]   = useState([]);
+  const [likes,    setLikes]     = useState([]);
+  const [watchlist,setWatchlist] = useState([]);
+  const [follows,   setFollows]   = useState([]);
+  const [loading,  setLoading]   = useState(true);
+  const [apiGames, setApiGames]  = useState([]);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [route,    setRoute]     = useState({page:'home',params:{}});
+  const [toast,    setToast]     = useState(null);
+  const [addGame,  setAddGame]   = useState(false);
+  const toastTimer = useRef(null);
+
+  const fetchApiGames = useCallback(async()=>{
+    setApiLoading(true);
+    const sports=['nba','nfl','mlb','nhl','mls','epl'];
+    // Fetch last 14 days per sport, 10 most recent games each
+    const results = await Promise.all(sports.map(s=>fetchRecentLeagueGames(s,10,14)));
+    const all = results.flat().sort((a,b)=>{
+      // Live first, then by date descending
+      const o={in:0,post:1,pre:2};
+      const statusDiff=(o[a.status]||1)-(o[b.status]||1);
+      if(statusDiff!==0)return statusDiff;
+      return new Date(b.datetime||b.date)-new Date(a.datetime||a.date);
+    });
+    setApiGames(all);
+    setApiLoading(false);
+  },[]);
+
+  // Lighter refresh every 60s: just today's live scores
+  const refreshLive = useCallback(async()=>{
+    const sports=['nba','nfl','mlb','nhl','mls','epl'];
+    const results = await Promise.all(sports.map(fetchLeagueGames));
+    const today = results.flat();
+    if(!today.length)return;
+    setApiGames(prev=>{
+      const todayIds=new Set(today.map(g=>g.id));
+      // Replace today's games, keep historical
+      return [...today,...prev.filter(g=>!todayIds.has(g.id)&&g.status!=='in')]
+        .sort((a,b)=>{const o={in:0,post:1,pre:2};const d=(o[a.status]||1)-(o[b.status]||1);return d!==0?d:new Date(b.datetime||b.date)-new Date(a.datetime||a.date);});
+    });
+  },[]);
+
+  useEffect(()=>{
+    if(!session) return;
+    fetchApiGames(); // full 14-day fetch on load
+    const id=setInterval(refreshLive,60000); // light live-score refresh every 60s
+    return()=>clearInterval(id);
+  },[session,fetchApiGames,refreshLive]);
+
+    const navigate = (page,params={}) => setRoute({page,params});
+  const showToast = useCallback(msg=>{ setToast(msg); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToast(null),2300); },[]);
+
+  const loadData = useCallback(async(userId)=>{
+    try {
+      const [gR,rR,lR,wR,pR,fR] = await Promise.all([
+        sb.from('games').select('*').order('date',{ascending:false}),
+        sb.from('reviews').select('*').order('created_at',{ascending:false}),
+        sb.from('likes').select('*'),
+        sb.from('watchlist').select('game_id').eq('user_id',userId),
+        sb.from('profiles').select('*').eq('id',userId).single(),
+        sb.from('follows').select('*').eq('follower_id',userId),
+      ]);
+      setGames((gR.data||[]).map(normalizeGame));
+      setReviews((rR.data||[]).map(normalizeReview));
+      setLikes(lR.data||[]);
+      setWatchlist((wR.data||[]).map(w=>w.game_id));
+      setProfile(pR.data);
+      setFollows(fR.data||[]);
+    } catch(e){ console.error('loadData error',e); }
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{
+    sb.auth.getSession().then(({data:{session}})=>{ setSession(session); if(session)loadData(session.user.id); else setLoading(false); });
+    const {data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{ setSession(session); if(!session){setGames([]);setReviews([]);setLikes([]);setWatchlist([]);setFollows([]);setProfile(null);} });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  // Build state object compatible with all existing components
+  const state = useMemo(()=>({
+    games,
+    apiGames,
+    apiLoading,
+    reviews: reviews.map(r=>({...r, likes: likes.filter(l=>l.review_id===r.id).map(l=>l.user_id)})),
+    watchlist,
+    follows,
+    currentUser: { id: session?.user?.id||'', name: profile?.username||'' },
+  }),[games,reviews,likes,watchlist,follows,session,profile]);
+
+  const dispatch = useCallback(async(action)=>{
+    const uid = session?.user?.id;
+    if(!uid) return;
+    switch(action.type){
+      case 'ADD_REVIEW': {
+        const r=action.review;
+        const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:profile.username,rating:r.rating,body:r.text,video_url:r.videoUrl||''},{onConflict:'game_id,user_id'}).select().single();
+        if(!error&&data) setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);
+        break;
+      }
+      case 'DELETE_REVIEW': {
+        await sb.from('reviews').delete().eq('id',action.reviewId).eq('user_id',uid);
+        setReviews(prev=>prev.filter(r=>r.id!==action.reviewId));
+        break;
+      }
+      case 'TOGGLE_LIKE': {
+        const isLiked=likes.some(l=>l.review_id===action.reviewId&&l.user_id===uid);
+        if(isLiked){ await sb.from('likes').delete().match({review_id:action.reviewId,user_id:uid}); setLikes(prev=>prev.filter(l=>!(l.review_id===action.reviewId&&l.user_id===uid))); }
+        else { const like={review_id:action.reviewId,user_id:uid}; await sb.from('likes').insert(like); setLikes(prev=>[...prev,like]); }
+        break;
+      }
+      case 'ADD_WATCHLIST': { await sb.from('watchlist').insert({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>[...prev,action.gameId]); break; }
+      case 'REMOVE_WATCHLIST': { await sb.from('watchlist').delete().match({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>prev.filter(id=>id!==action.gameId)); break; }
+      case 'FOLLOW': { await sb.from('follows').insert({follower_id:uid,following_id:action.userId}); setFollows(prev=>[...prev,{follower_id:uid,following_id:action.userId}]); break; }
+      case 'UNFOLLOW': { await sb.from('follows').delete().match({follower_id:uid,following_id:action.userId}); setFollows(prev=>prev.filter(f=>!(f.follower_id===uid&&f.following_id===action.userId))); break; }
+      case 'ADD_GAME': {
+        const g=action.game;
+        const {data,error}=await sb.from('games').insert({id:g.id,sport:g.sport,league:g.league||g.sport,home:g.home,away:g.away,home_score:g.homeScore,away_score:g.awayScore,date:g.date,venue:g.venue||'',description:g.description||'',video_url:g.videoUrl||'',tags:g.tags||[],created_by:uid}).select().single();
+        if(!error&&data) setGames(prev=>[normalizeGame(data),...prev]);
+        break;
+      }
+      case 'UPSERT_API_GAME': {
+        const g=action.game, id='api_'+g.apiId;
+        const {data}=await sb.from('games').upsert({id,sport:g.sport,league:g.league||g.sport,home:g.home,away:g.away,home_score:g.homeScore??null,away_score:g.awayScore??null,date:g.date,venue:g.venue||'',description:'',video_url:'',tags:[],api_id:g.apiId,home_team_id:g.homeTeamId||null,away_team_id:g.awayTeamId||null,series_info:g.seriesInfo||null,series_type:g.seriesType||null,home_series_wins:g.homeSeriesWins??null,away_series_wins:g.awaySeriesWins??null,is_playoff:g.isPlayoff||false,created_by:uid},{onConflict:'id'}).select().single();
+        const norm=data?{...normalizeGame(data),...g,id}:{...g,id,league:g.league||g.sport};
+        setGames(prev=>{const ex=prev.find(x=>x.id===id);return ex?prev.map(x=>x.id===id?{...x,...norm}:x):[norm,...prev];});
+        break;
+      }
+      case 'UPDATE_GAME_SERIES': {
+        const {gameId,awaySeriesWins,homeSeriesWins,seriesType,isPlayoff}=action;
+        // Update local state immediately (optimistic)
+        setGames(prev=>prev.map(g=>g.id===gameId?{...g,awaySeriesWins,homeSeriesWins,seriesType,isPlayoff,seriesInfo:awaySeriesWins!==null?`Series: ${awaySeriesWins}–${homeSeriesWins}`:''}:g));
+        // Persist to Supabase if it's a DB game
+        await sb.from('games').update({away_series_wins:awaySeriesWins,home_series_wins:homeSeriesWins,series_type:seriesType||null,is_playoff:isPlayoff,series_info:awaySeriesWins!==null?`${awaySeriesWins}–${homeSeriesWins}`:null}).eq('id',gameId);
+        // Also update apiGames state to reflect immediately
+        setApiGames(prev=>prev.map(g=>g.id===gameId?{...g,awaySeriesWins,homeSeriesWins,seriesType,isPlayoff}:g));
+        break;
+      }
+      case 'SET_USER_NAME': { await sb.from('profiles').update({username:action.name}).eq('id',uid); setProfile(prev=>({...prev,username:action.name})); break; }
+    }
+  },[session,profile,likes]);
+
+  /* Loading screen */
+  if(loading) return (
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#000',gap:20}}>
+      <div style={{fontSize:32,fontWeight:900,letterSpacing:-1}}>BENCH<span style={{color:'var(--accent)'}}>SCORE</span></div>
+      <div className="spinner"/>
+    </div>
+  );
+
+  /* Auth screen */
+  if(!session) return <AuthPage onAuth={async(sess)=>{ setSession(sess); await loadData(sess.user.id); showToast('Welcome to Benchscore! 🎉'); }}/>;
+
+  const activePage=route.page==='game'?null:route.page;
+  const NAV=[{id:'home',label:'Home',Icon:IconHome},{id:'search',label:'Search',Icon:IconSearch},{id:'add',label:'',isAdd:true},{id:'leaderboard',label:'Top',Icon:IconTrophy},{id:'profile',label:'Profile',Icon:IconPerson}];
+
+  return (
+    <div style={{height:'100dvh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{flex:1,overflow:'hidden'}}>
+        {route.page==='home'        &&<HomePage        state={state} navigate={navigate}/>}
+        {route.page==='search'      &&<SearchPage      state={state} navigate={navigate}/>}
+        {route.page==='leaderboard' &&<LeaderboardPage state={state} navigate={navigate}/>}
+        {route.page==='profile'     &&<ProfilePage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onSignOut={()=>sb.auth.signOut()}/>}
+        {route.page==='game'        &&<GamePage        gameId={route.params.gameId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+        {route.page==='public_profile'&&<PublicProfilePage userId={route.params.userId} username={route.params.username} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+      </div>
+      <div className="nav">
+        {NAV.map(tab=>(
+          <div key={tab.id} className={`nav-item${activePage===tab.id?' active':''}`} onClick={()=>{if(tab.isAdd){setAddGame(true);return;}navigate(tab.id);}}>
+            {tab.isAdd?(<div className="nav-add-btn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>):(<><div className="nav-icon"><tab.Icon active={activePage===tab.id}/></div><span className="nav-label">{tab.label}</span></>)}
+          </div>
+        ))}
+      </div>
+      {addGame&&<AddGameSheet onClose={()=>setAddGame(false)} onSelect={async(g)=>{await dispatch({type:'UPSERT_API_GAME',game:g});setAddGame(false);navigate('game',{gameId:'api_'+g.apiId});}}/>}
+      {toast&&<div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+</script>
+</body>
+</html>
