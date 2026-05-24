@@ -1,6 +1,6 @@
 {
-  "name": "Benchscore",
-  "short_name": "Benchscore",
+  "name": "BoxScore",
+  "short_name": "BoxScore",
   "description": "Rate, review, and relive iconic sports moments. Letterboxd for sports.",
   "start_url": "/index.html",
   "display": "standalone",

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>Benchscore</title>
+  <title>BOXSCORE</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1450,7 +1450,7 @@ function App() {
   );
 
   /* Auth screen */
-  if(!session) return <AuthPage onAuth={async(sess)=>{ setSession(sess); await loadData(sess.user.id); showToast('Welcome to Benchscore! 🎉'); }}/>;
+  if(!session) return <AuthPage onAuth={async(sess)=>{ setSession(sess); await loadData(sess.user.id); showToast('Welcome to BOXSCORE! 🎉'); }}/>;
 
   const activePage=route.page==='game'?null:route.page;
   const NAV=[{id:'home',label:'Home',Icon:IconHome},{id:'search',label:'Search',Icon:IconSearch},{id:'add',label:'',isAdd:true},{id:'leaderboard',label:'Top',Icon:IconTrophy},{id:'profile',label:'Profile',Icon:IconPerson}];
