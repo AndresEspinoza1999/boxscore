@@ -38,8 +38,7 @@
     .page{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
     /* APP HEADER */
     .app-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px;}
-    .app-logo{font-size:26px;font-weight:900;letter-spacing:-1px;}
-    .app-logo span{color:var(--accent);}
+    .app-logo{display:inline-flex;align-items:center;gap:7px;font-size:26px;font-weight:900;letter-spacing:-0.5px;}
     .app-sub{font-size:12px;color:var(--text3);}
     /* SECTION */
     .section-hd{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;}
@@ -197,8 +196,7 @@
     .lb-cnt{font-size:11px;color:var(--text3);}
     /* ONBOARDING */
     .onboard-wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);}
-    .onboard-logo{font-size:36px;font-weight:900;letter-spacing:-1.5px;margin-bottom:4px;}
-    .onboard-logo span,.app-logo span{color:var(--accent);}
+    .onboard-logo{display:flex;align-items:center;justify-content:center;gap:10px;font-size:36px;font-weight:900;letter-spacing:-0.5px;margin-bottom:4px;}
     .onboard-sub{font-size:15px;color:var(--text3);margin-bottom:40px;}
     .onboard-card{background:var(--s2);border:1px solid var(--border);border-radius:24px;padding:28px 24px;width:100%;max-width:400px;}
     .onboard-q{font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px;}
@@ -636,7 +634,7 @@ function HomePage({ state, navigate }) {
   const upcomingGames = (state.apiGames||[]).filter(g=>g.status==='pre'&&(sport==='all'||g.sport===sport)).slice(0,6);
   return (
     <div className="page">
-      <div className="app-hd"><div><div className="app-logo">BENCH<span>SCORE</span></div><div className="app-sub">Rate every game</div></div></div>
+      <div className="app-hd"><div><div className="app-logo"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" style={{flexShrink:0}}><rect x="0.75" y="0.75" width="20.5" height="16.5" rx="3.75" fill="#0a84ff" fillOpacity="0.12" stroke="#0a84ff" strokeWidth="1.5"/><rect x="4" y="4.5" width="6" height="2" rx="1" fill="#0a84ff"/><rect x="14" y="4.5" width="4" height="2" rx="1" fill="#0a84ff"/><rect x="4" y="11.5" width="7" height="2" rx="1" fill="white" fillOpacity="0.35"/><rect x="14" y="11.5" width="4" height="2" rx="1" fill="white" fillOpacity="0.35"/></svg>BOXSCORE</div><div className="app-sub">Rate every game</div></div></div>
       <div style={{position:'sticky',top:0,zIndex:10,background:'var(--bg)',paddingBottom:4,borderBottom:'1px solid var(--border)'}}>
         <div className="sport-scroll">{SPORTS.map(s=><div key={s.id} className={`s-pill sc-${s.id}${sport===s.id?' active':''}`} onClick={()=>setSport(s.id)}>{s.id!=='all'&&<span className="s-dot"/>}{s.emoji} {s.label}</div>)}</div>
       </div>
@@ -807,7 +805,7 @@ function SearchPage({ state, navigate }) {
   const AcList=({items,query,onPick,label})=>(<div className="ac-list"><div className="ac-hdr">{query?`${items.length} result${items.length!==1?'s':''}`:label}</div>{items.map(t=>{const q=query.toLowerCase(),idx=q?t.toLowerCase().indexOf(q):-1;return(<div key={t} className="ac-item" onMouseDown={e=>e.preventDefault()} onClick={()=>onPick(t)}><span>{idx>=0?<>{t.slice(0,idx)}<mark>{t.slice(idx,idx+query.length)}</mark>{t.slice(idx+query.length)}</>:t}</span><span style={{fontSize:12,color:'var(--text3)'}}>›</span></div>);})}</div>);
   return (
     <div className="page">
-      <div className="search-hd"><div className="app-logo" style={{fontSize:20,marginBottom:12}}>BENCH<span style={{color:'var(--accent)'}}>SCORE</span></div>
+      <div className="search-hd"><div className="app-logo" style={{fontSize:20,marginBottom:12,gap:5}}><svg width="17" height="14" viewBox="0 0 22 18" fill="none" style={{flexShrink:0}}><rect x="0.75" y="0.75" width="20.5" height="16.5" rx="3.75" fill="#0a84ff" fillOpacity="0.12" stroke="#0a84ff" strokeWidth="1.5"/><rect x="4" y="4.5" width="6" height="2" rx="1" fill="#0a84ff"/><rect x="14" y="4.5" width="4" height="2" rx="1" fill="#0a84ff"/><rect x="4" y="11.5" width="7" height="2" rx="1" fill="white" fillOpacity="0.35"/><rect x="14" y="11.5" width="4" height="2" rx="1" fill="white" fillOpacity="0.35"/></svg>BOXSCORE</div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10}}>
           {SPORTS.filter(s=>s.id!=='all').map(s=><div key={s.id} className={`f-pill sc-${s.id}${sport===s.id?' active':''}`} style={{['--sport-c']:getSportColor(s.id)}} onClick={()=>setSport(sport===s.id?'':s.id)}>{s.emoji} {s.label}</div>)}
         </div>
@@ -1089,7 +1087,7 @@ function LeaderboardPage({ state, navigate }) {
   const rankEmoji=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1;
   return (
     <div className="page">
-      <div className="app-hd"><div><div className="app-logo">BENCH<span>SCORE</span></div><div className="app-sub">Top rated games</div></div><span style={{fontSize:24}}>🏆</span></div>
+      <div className="app-hd"><div><div className="app-logo"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" style={{flexShrink:0}}><rect x="0.75" y="0.75" width="20.5" height="16.5" rx="3.75" fill="#0a84ff" fillOpacity="0.12" stroke="#0a84ff" strokeWidth="1.5"/><rect x="4" y="4.5" width="6" height="2" rx="1" fill="#0a84ff"/><rect x="14" y="4.5" width="4" height="2" rx="1" fill="#0a84ff"/><rect x="4" y="11.5" width="7" height="2" rx="1" fill="white" fillOpacity="0.35"/><rect x="14" y="11.5" width="4" height="2" rx="1" fill="white" fillOpacity="0.35"/></svg>BOXSCORE</div><div className="app-sub">Top rated games</div></div><span style={{fontSize:24}}>🏆</span></div>
       {friendsActivity.length>0&&sport==='all'&&(
         <div style={{padding:'0 16px 4px'}}>
           <div className="section-hd" style={{padding:'8px 0'}}><span className="section-title">👥 Friends</span></div>
@@ -1269,7 +1267,7 @@ function AuthPage({ onAuth }) {
 
   return (
     <div className="onboard-wrap">
-      <div className="onboard-logo">BENCH<span>SCORE</span></div>
+      <div className="onboard-logo"><svg width="32" height="26" viewBox="0 0 32 26" fill="none" style={{flexShrink:0}}><rect x="0.75" y="0.75" width="30.5" height="24.5" rx="5.25" fill="#0a84ff" fillOpacity="0.12" stroke="#0a84ff" strokeWidth="1.5"/><rect x="5" y="6" width="9" height="2.5" rx="1.25" fill="#0a84ff"/><rect x="20" y="6" width="7" height="2.5" rx="1.25" fill="#0a84ff"/><rect x="5" y="16.5" width="11" height="2.5" rx="1.25" fill="white" fillOpacity="0.35"/><rect x="20" y="16.5" width="7" height="2.5" rx="1.25" fill="white" fillOpacity="0.35"/></svg>BOXSCORE</div>
       <div className="onboard-sub">Rate. Review. Relive.</div>
       <div className="onboard-card">
         <div className="onboard-q">{mode==='signup'?'Create account':'Welcome back'}</div>
