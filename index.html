@@ -1008,17 +1008,17 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
         {userReviews.length===0
           ?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet</p></div>
           :userReviews.map(r=>{
-            const g=state.games.find(g=>g.id===r.gameId);
+            const g=state.games.find(g=>g.id===r.gameId)||(state.apiGames||[]).find(g=>g.id===r.gameId);
             return(
               <div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:r.gameId})}>
-                {g&&<div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
-                  <div style={{fontSize:13,fontWeight:800}}>{abbr(g.away)} vs {abbr(g.home)}</div>
-                  <span className={"sport-badge sc-"+g.sport} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>
-                </div>}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                  <div style={{fontSize:13,fontWeight:800}}>{g?`${abbr(g.away)} vs ${abbr(g.home)}`:'Game Review'}</div>
+                  {g&&<span className={"sport-badge sc-"+g.sport} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>}
+                </div>
                 <Stars rating={r.rating} size={13}/>
-                <p className="review-body" style={{marginTop:8}}>{r.text}</p>
+                {r.text&&<p className="review-body" style={{marginTop:8}}>{r.text}</p>}
                 <div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div>
-              {r.videoUrl&&<VideoPreview url={r.videoUrl}/>}
+                {r.videoUrl&&<VideoPreview url={r.videoUrl}/>}
               </div>
             );
           })}
@@ -1663,21 +1663,38 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   const [bioVal, setBioVal] = useState(state.profile?.bio||'');
   const [avatarVal, setAvatarVal] = useState(state.profile?.avatar_url||'');
   const myReviews=state.reviews.filter(r=>r.userId===state.currentUser.id);
-  const watchGames=state.games.filter(g=>state.watchlist.includes(g.id));
+  const allGames=[...state.games,...(state.apiGames||[])].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i);
+  const watchGames=allGames.filter(g=>state.watchlist.includes(g.id));
   const avgMine=myReviews.length?(myReviews.reduce((a,b)=>a+b.rating,0)/myReviews.length).toFixed(1):'—';
   const followingCount=(state.follows||[]).filter(f=>f.follower_id===state.currentUser.id).length;
-  const saveName=()=>{if(nameVal.trim()){dispatch({type:'SET_USER_NAME',name:nameVal.trim()});setEditing(false);showToast('✓ Profile updated');}};
+  const saveProfile=()=>{
+    if(!nameVal.trim()) return;
+    dispatch({type:'UPDATE_PROFILE',name:nameVal.trim(),bio:bioVal,avatarUrl:avatarVal});
+    setEditing(false);
+    showToast('✓ Profile updated');
+  };
   return (
     <div className="page">
       <div className="profile-hd">
         <AvatarImg name={state.currentUser.name} url={state.profile?.avatar_url} size={72}/>
-        {editing?(<div style={{display:'flex',gap:8,maxWidth:240,margin:'8px auto 6px'}}><input value={nameVal} onChange={e=>setNameVal(e.target.value)} style={{textAlign:'center'}} onKeyDown={e=>e.key==='Enter'&&saveName()}/><button className="btn btn-primary btn-sm" onClick={saveName}>Save</button></div>):(<div className="profile-name" onClick={()=>setEditing(true)} style={{cursor:'pointer',marginBottom:4,marginTop:8}}>{state.currentUser.name} <span style={{fontSize:14,opacity:0.5}}>✏️</span></div>)}
-        <div style={{maxWidth:280,margin:'8px auto 0',display:'flex',flexDirection:'column',gap:8}}>
-          <input value={avatarVal} onChange={e=>setAvatarVal(e.target.value)} placeholder="Avatar image URL (optional)" style={{fontSize:12,textAlign:'center'}}/>
-          <textarea rows={2} value={bioVal} onChange={e=>setBioVal(e.target.value.slice(0,150))} placeholder="Bio (optional, 150 chars)" style={{fontSize:12,resize:'none'}}/>
-          <button className="btn btn-primary btn-sm" onClick={()=>{dispatch({type:'UPDATE_PROFILE',bio:bioVal,avatarUrl:avatarVal});showToast('✓ Profile updated');}}>Save Profile</button>
-        </div>
-        <div className="profile-stats">
+        {editing?(
+          <div style={{maxWidth:300,margin:'12px auto 0',display:'flex',flexDirection:'column',gap:10}}>
+            <input value={nameVal} onChange={e=>setNameVal(e.target.value)} placeholder="Username" style={{textAlign:'center',fontWeight:700}}/>
+            <input value={avatarVal} onChange={e=>setAvatarVal(e.target.value)} placeholder="Avatar image URL (optional)" style={{fontSize:13,textAlign:'center'}}/>
+            <textarea rows={2} value={bioVal} onChange={e=>setBioVal(e.target.value.slice(0,150))} placeholder="Bio (optional, 150 chars)" style={{fontSize:13,resize:'none'}}/>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn btn-ghost btn-sm" style={{flex:1}} onClick={()=>setEditing(false)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" style={{flex:1}} onClick={saveProfile}>Save</button>
+            </div>
+          </div>
+        ):(
+          <>
+            <div className="profile-name" style={{marginTop:10,marginBottom:2}}>{state.currentUser.name||'—'}</div>
+            {state.profile?.bio&&<div style={{fontSize:13,color:'var(--text2)',textAlign:'center',margin:'2px 20px 0',lineHeight:1.4}}>{state.profile.bio}</div>}
+            <button className="btn btn-ghost btn-sm" style={{margin:'10px auto 0',display:'flex'}} onClick={()=>{setNameVal(state.currentUser.name);setBioVal(state.profile?.bio||'');setAvatarVal(state.profile?.avatar_url||'');setEditing(true);}}>✏️ Edit Profile</button>
+          </>
+        )}
+        <div className="profile-stats" style={{marginTop:14}}>
           <div><div className="stat-num">{myReviews.length}</div><div className="stat-lbl">Reviews</div></div>
           <div><div className="stat-num">{followingCount}</div><div className="stat-lbl">Following</div></div>
           <div><div className="stat-num">{watchGames.length}</div><div className="stat-lbl">Saved</div></div>
@@ -1687,7 +1704,7 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
       </div>
       <div className="tab-bar">{[['reviews',`Reviews (${myReviews.length})`],['saved',`Saved (${watchGames.length})`]].map(([id,lbl])=><div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>)}</div>
       <div style={{padding:'16px'}} className="gap-stack">
-        {tab==='reviews'?myReviews.length===0?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet — go rate a game!</p></div>:myReviews.map(r=>{const g=state.games.find(g=>g.id===r.gameId);if(!g)return null;return(<div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:g.id})}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}><div style={{fontSize:13,fontWeight:800}}>{abbr(g.away)} vs {abbr(g.home)}</div><span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span></div><Stars rating={r.rating} size={13}/><p className="review-body" style={{marginTop:8}}>{r.text}</p><div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div></div>);})
+        {tab==='reviews'?myReviews.length===0?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet — go rate a game!</p></div>:myReviews.map(r=>{const g=allGames.find(x=>x.id===r.gameId);return(<div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:r.gameId})}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}><div style={{fontSize:13,fontWeight:800}}>{g?`${abbr(g.away)} vs ${abbr(g.home)}`:'Game Review'}</div>{g&&<span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>}</div><Stars rating={r.rating} size={13}/>{r.text?<p className="review-body" style={{marginTop:8}}>{r.text}</p>:null}<div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div></div>);})
         :watchGames.length===0?<div className="empty"><div className="empty-icon">⭐</div><p>No saved games yet.<br/>Tap ☆ Save on any game.</p></div>:watchGames.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
       </div>
     </div>
@@ -2098,12 +2115,20 @@ function App() {
         sb.from('blocks').select('*').eq('blocker_id',userId),
         sb.from('notifications').select('*').eq('user_id',userId).order('created_at',{ascending:false}).limit(30),
       ]);
-      setGames((gR.data||[]).map(normalizeGame));
+      const loadedGames = (gR.data||[]).map(normalizeGame);
+      setGames(loadedGames);
       setReviews((rR.data||[]).map(normalizeReview));
       setLikes(lR.data||[]);
       setWatchlist((wR.data||[]).map(w=>w.game_id));
       setProfile(pR.data);
       setNotifications((nR.data||[]).map(normalizeNotif));
+      // Recover any games referenced by reviews but not yet in the games table
+      const loadedIds = new Set(loadedGames.map(g=>g.id));
+      const missingIds = [...new Set((rR.data||[]).map(r=>r.game_id))].filter(id=>!loadedIds.has(id));
+      if(missingIds.length){
+        const {data:mg}=await sb.from('games').select('*').in('id',missingIds);
+        if(mg?.length) setGames(prev=>[...prev,...mg.map(normalizeGame).filter(g=>!prev.find(p=>p.id===g.id))]);
+      }
       // Enrich follows + blocks with usernames
       const followData = fR.data||[], blockData = bR.data||[];
       const extraIds = [...new Set([...followData.map(f=>f.following_id),...blockData.map(b=>b.blocked_id)])];
@@ -2136,13 +2161,23 @@ function App() {
   }),[games,reviews,likes,watchlist,follows,blocks,notifications,session,profile]);
 
   const ensureGameInDb = async(g, uid) => {
-    await sb.from('games').upsert({
+    const {error} = await sb.from('games').upsert({
       id:g.id, sport:g.sport, league:g.league||g.sport,
       home:g.home, away:g.away,
       home_score:g.homeScore??null, away_score:g.awayScore??null,
       date:g.date||'', venue:g.venue||'', description:g.description||'',
-      video_url:'', tags:g.tags||[], created_by:uid
+      video_url:'', tags:g.tags||[],
+      api_id:g.apiId||null,
+      home_team_id:g.homeTeamId||null,
+      away_team_id:g.awayTeamId||null,
+      series_info:g.seriesInfo||null,
+      series_type:g.seriesType||null,
+      home_series_wins:g.homeSeriesWins??null,
+      away_series_wins:g.awaySeriesWins??null,
+      is_playoff:g.isPlayoff||false,
+      created_by:uid
     },{onConflict:'id'});
+    if(error) console.error('ensureGameInDb error',error);
   };
 
   const dispatch = useCallback(async(action)=>{
@@ -2224,11 +2259,14 @@ function App() {
       }
       case 'SET_USER_NAME': { await sb.from('profiles').update({username:action.name}).eq('id',uid); setProfile(prev=>({...prev,username:action.name})); break; }
       case 'UPDATE_PROFILE': {
-        const updates = {username:action.name||profile.username};
+        const updates = {};
+        if(action.name) updates.username = action.name;
         if(action.bio!==undefined) updates.bio = action.bio;
         if(action.avatarUrl!==undefined) updates.avatar_url = action.avatarUrl;
-        await sb.from('profiles').update(updates).eq('id',uid);
-        setProfile(prev=>({...prev,...updates}));
+        if(Object.keys(updates).length){
+          await sb.from('profiles').update(updates).eq('id',uid);
+          setProfile(prev=>({...prev,...updates}));
+        }
         break;
       }
       case 'MARK_NOTIFS_READ': {
