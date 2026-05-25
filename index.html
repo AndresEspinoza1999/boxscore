@@ -1106,12 +1106,15 @@ function ReviewSheet({ game, onClose, onSubmit, existing }) {
   const color=getSportColor(game.sport);
 
   const loadRoster=useCallback(async()=>{
-    if(roster!==null||rosterLoading)return;
+    if(rosterLoading)return;
+    // If we already loaded a non-empty roster, skip
+    if(roster!==null&&roster.length>0)return;
     const path=LEAGUE_PATHS[game.league]||LEAGUE_PATHS[game.sport]||null;
     if(!path||(!game.homeTeamId&&!game.awayTeamId)){setRoster([]);return;}
     setRosterLoading(true);
     const [away,home]=await Promise.all([fetchRoster(path,game.awayTeamId),fetchRoster(path,game.homeTeamId)]);
-    setRoster([...away,...home]);
+    const combined=[...new Set([...away,...home])];
+    setRoster(combined);
     setRosterLoading(false);
   },[roster,rosterLoading,game]);
 
@@ -1245,7 +1248,11 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
   const [showSeriesEditor,setShowSeriesEditor]=useState(false);
   const [reviewSort,setReviewSort]=useState('recent');
   const [showVidIdx,setShowVidIdx]=useState(null);
-  const game=state.games.find(g=>g.id===gameId)||(state.apiGames||[]).find(g=>g.id===gameId);
+  const _dbGame=state.games.find(g=>g.id===gameId);
+  const _apiGame=(state.apiGames||[]).find(g=>g.id===gameId);
+  const game=_dbGame&&_apiGame
+    ?{..._dbGame,homeTeamId:_dbGame.homeTeamId||_apiGame.homeTeamId,awayTeamId:_dbGame.awayTeamId||_apiGame.awayTeamId,homeScore:_apiGame.homeScore??_dbGame.homeScore,awayScore:_apiGame.awayScore??_dbGame.awayScore,status:_apiGame.status||_dbGame.status}
+    :(_dbGame||_apiGame);
   if(!game)return <div style={{padding:32,textAlign:'center',color:'var(--text3)'}}>Game not found</div>;
   const reviews=state.reviews.filter(r=>r.gameId===gameId);
   const avg=avgRating(reviews), inWL=state.watchlist.includes(gameId);
