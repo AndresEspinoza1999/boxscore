@@ -4,6 +4,22 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>BOXSCORE</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#000000"/>
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="BoxScore"/>
+  <link rel="apple-touch-icon" href="icons/icon-180.png"/>
+  <!-- Service Worker -->
+  <script>
+    if('serviceWorker' in navigator){
+      window.addEventListener('load',()=>{
+        navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      });
+    }
+  </script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -1719,6 +1735,53 @@ function AuthPage({ onAuth }) {
   );
 }
 
+/* ── PWA INSTALL BANNER ── */
+function InstallBanner() {
+  const [prompt, setPrompt] = useState(null);
+  const [show, setShow] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [dismissed, setDismissed] = useState(()=>!!localStorage.getItem('bs-install-dismissed'));
+
+  useEffect(()=>{
+    // Detect iOS (iPhone/iPad) that isn't already installed as PWA
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone;
+    setIsIOS(ios);
+    if(ios && !dismissed) setShow(true);
+
+    // Android / Desktop install prompt
+    const handler = e => {
+      e.preventDefault();
+      setPrompt(e);
+      if(!dismissed) setShow(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, [dismissed]);
+
+  const install = async () => {
+    if(prompt){ prompt.prompt(); const {outcome}=await prompt.userChoice; if(outcome==='accepted') setShow(false); }
+    dismiss();
+  };
+  const dismiss = () => { localStorage.setItem('bs-install-dismissed','1'); setShow(false); };
+
+  if(!show || dismissed) return null;
+
+  return (
+    <div style={{position:'fixed',bottom:80,left:16,right:16,zIndex:999,background:'#1c1c24',border:'1.5px solid rgba(240,191,61,0.4)',borderRadius:16,padding:'14px 16px',display:'flex',alignItems:'flex-start',gap:12,boxShadow:'0 8px 32px rgba(0,0,0,0.6)'}}>
+      <div style={{fontSize:28,lineHeight:1,flexShrink:0}}>⚡</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:800,fontSize:14,color:'var(--text)',marginBottom:3}}>Add BoxScore to Home Screen</div>
+        {isIOS
+          ? <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.4}}>Tap the <strong>Share</strong> button then <strong>"Add to Home Screen"</strong></div>
+          : <div style={{fontSize:12,color:'var(--text2)'}}>Install for the full app experience</div>
+        }
+        {!isIOS && <button className="btn btn-primary btn-sm" style={{marginTop:8}} onClick={install}>Install</button>}
+      </div>
+      <button onClick={dismiss} style={{background:'none',border:'none',color:'var(--text3)',fontSize:18,lineHeight:1,padding:'0 2px',flexShrink:0}}>✕</button>
+    </div>
+  );
+}
+
 /* ── ROOT APP ── */
 function App() {
   const [session,  setSession]   = useState(null);
@@ -1965,6 +2028,7 @@ function App() {
       </div>
       {addGame&&<AddGameSheet onClose={()=>setAddGame(false)} onSelect={async(g)=>{await dispatch({type:'UPSERT_API_GAME',game:g});setAddGame(false);navigate('game',{gameId:'api_'+g.apiId});}}/>}
       {toast&&<div className="toast">{toast}</div>}
+      <InstallBanner/>
     </div>
   );
 }
