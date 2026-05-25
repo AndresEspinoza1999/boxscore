@@ -2178,24 +2178,27 @@ function App() {
   }),[games,reviews,likes,watchlist,follows,blocks,notifications,session,profile]);
 
   const ensureGameInDb = async(g, uid) => {
-    const {error} = await sb.from('games').upsert({
+    // Pass 1: full column set (no api_id — not in schema)
+    const full = {
       id:g.id, sport:g.sport, league:g.league||g.sport,
       home:g.home, away:g.away,
       home_score:g.homeScore??null, away_score:g.awayScore??null,
       date:g.date||'', venue:g.venue||'', description:g.description||'',
       video_url:'', tags:g.tags||[],
-      api_id:g.apiId||null,
-      home_team_id:g.homeTeamId||null,
-      away_team_id:g.awayTeamId||null,
-      series_info:g.seriesInfo||null,
-      series_type:g.seriesType||null,
-      home_series_wins:g.homeSeriesWins??null,
-      away_series_wins:g.awaySeriesWins??null,
-      is_playoff:g.isPlayoff||false,
-      created_by:uid
-    },{onConflict:'id'});
-    if(error){console.error('ensureGameInDb error',error);return {ok:false,error:error.message||error.code||String(error)};}
-    return {ok:true};
+      home_team_id:g.homeTeamId||null, away_team_id:g.awayTeamId||null,
+      series_info:g.seriesInfo||null, series_type:g.seriesType||null,
+      home_series_wins:g.homeSeriesWins??null, away_series_wins:g.awaySeriesWins??null,
+      is_playoff:g.isPlayoff||false, created_by:uid
+    };
+    const {error:e1} = await sb.from('games').upsert(full,{onConflict:'id'});
+    if(!e1) return {ok:true};
+    // Pass 2: minimal safe columns only
+    console.warn('[ensureGameInDb] full upsert failed, trying minimal:',e1.message);
+    const minimal = {id:g.id, sport:g.sport, home:g.home, away:g.away, date:g.date||''};
+    const {error:e2} = await sb.from('games').upsert(minimal,{onConflict:'id'});
+    if(!e2) return {ok:true};
+    console.error('[ensureGameInDb] minimal upsert also failed',e2);
+    return {ok:false,error:e2.message||e2.code||String(e2)};
   };
 
   const dispatch = useCallback(async(action)=>{
