@@ -110,6 +110,13 @@
     .hero-card{background:var(--s2);border:1px solid var(--border);border-radius:20px;margin:0 16px;overflow:hidden;cursor:pointer;transition:box-shadow 0.3s;}
     .hero-card--live{border-color:rgba(255,69,58,0.55);box-shadow:0 0 0 1px rgba(255,69,58,0.2),0 4px 24px rgba(255,69,58,0.18);animation:live-glow 2.4s ease-in-out infinite;}
     @keyframes live-glow{0%,100%{box-shadow:0 0 0 1px rgba(255,69,58,0.2),0 4px 24px rgba(255,69,58,0.18);}50%{box-shadow:0 0 0 1px rgba(255,69,58,0.35),0 4px 32px rgba(255,69,58,0.32);}}
+    @keyframes ob-in{from{opacity:0;transform:translateX(40px);}to{opacity:1;transform:translateX(0);}}
+    @keyframes ob-in-back{from{opacity:0;transform:translateX(-40px);}to{opacity:1;transform:translateX(0);}}
+    .ob-slide{animation:ob-in 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both;}
+    .ob-slide-back{animation:ob-in-back 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both;}
+    .ob-emoji-glow{transition:filter 0.4s ease,transform 0.4s ease;}
+    .ob-tip{background:var(--s2);border:1.5px solid var(--border);border-radius:14px;padding:12px 16px;font-size:14px;color:var(--text);font-weight:500;text-align:left;line-height:1.4;display:flex;align-items:center;gap:10;}
+    .ob-tip-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center;}
     .hero-card-top{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--border);}
     .hero-badge{font-size:12px;font-weight:700;color:var(--sport-c,var(--accent));}
     .hero-date{font-size:11px;color:var(--text3);margin-left:auto;}
@@ -1696,12 +1703,12 @@ function AuthPage({ onAuth }) {
         if(username.trim().length<2){setError('Username needs at least 2 characters');setLoading(false);return;}
         const{data,error:e}=await sb.auth.signUp({email,password,options:{data:{username:username.trim(),fav_sport:fav}}});
         if(e)throw e;
-        if(data.session)onAuth(data.session);
+        if(data.session)onAuth(data.session, true);
         else setError('Check your email to confirm your account, then sign in.');
       } else {
         const{data,error:e}=await sb.auth.signInWithPassword({email,password});
         if(e)throw e;
-        onAuth(data.session);
+        onAuth(data.session, false);
       }
     } catch(e){ setError(e.message); }
     setLoading(false);
@@ -1730,6 +1737,160 @@ function AuthPage({ onAuth }) {
             {mode==='signup'?'Sign in':'Sign up'}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ONBOARDING ── */
+const OB_SLIDES = [
+  {
+    emoji:'🏆',
+    color:'#f0bf3d',
+    label:'Welcome',
+    title:'The Home for\nSports Fans',
+    desc:'Rate, review, and relive iconic sports moments — like Letterboxd, but for the game.',
+    tips:null,
+  },
+  {
+    emoji:'⚡',
+    color:'#ff453a',
+    label:'Live Scores',
+    title:'Follow the\nAction Live',
+    desc:'Real-time scores across NBA, NFL, MLB, Soccer and more. The featured card always shows the biggest game happening right now.',
+    tips:[{icon:'👆',text:'Tap any score card to open the game page'},{icon:'↓',text:'Pull down on the home screen to refresh'}],
+  },
+  {
+    emoji:'⭐',
+    color:'#f0bf3d',
+    label:'Reviews',
+    title:'Drop Your\nTake',
+    desc:'Rate every game 1–5 stars, write your thoughts, and tag the players who stood out.',
+    tips:[{icon:'➕',text:'Tap the + button to search & add any game'},{icon:'🎮',text:'Tap any game card to read or write a review'}],
+  },
+  {
+    emoji:'👥',
+    color:'#30d158',
+    label:'Friends',
+    title:'See What Your\nCircle Is Watching',
+    desc:'Follow friends to see their reviews in your activity feed. Like reviews and discover games through people you trust.',
+    tips:[{icon:'🔍',text:'Friends tab → People to search and follow'},{icon:'❤️',text:'Activity tab shows your friends\' recent reviews'}],
+  },
+  {
+    emoji:'🚀',
+    color:'#0a84ff',
+    label:'All Set',
+    title:'You\'re Ready\nto Play',
+    desc:null,
+    tips:[{icon:'🔔',text:'Bell icon — check your notifications'},{icon:'🔖',text:'Bookmark any game to your watchlist'},{icon:'📊',text:'Leaderboard tracks the top reviewers'},{icon:'👤',text:'Profile — set your avatar, bio & username'}],
+  },
+];
+
+function OnboardingFlow({ onDone }) {
+  const [step, setStep]   = useState(0);
+  const [dir,  setDir]    = useState(1); // 1=forward, -1=back
+  const [key,  setKey]    = useState(0);
+  const touchX = useRef(null);
+  const slide  = OB_SLIDES[step];
+  const isLast = step === OB_SLIDES.length - 1;
+
+  const go = (next) => {
+    if(next < 0 || next >= OB_SLIDES.length) return;
+    setDir(next > step ? 1 : -1);
+    setStep(next);
+    setKey(k => k+1);
+  };
+  const finish = () => { localStorage.setItem('bs-onboarded','1'); onDone(); };
+  const onTouchStart = e => { touchX.current = e.touches[0].clientX; };
+  const onTouchEnd   = e => {
+    if(touchX.current===null) return;
+    const dx = touchX.current - e.changedTouches[0].clientX;
+    touchX.current = null;
+    if(dx >  50) { if(!isLast) go(step+1); else finish(); }
+    if(dx < -50) { go(step-1); }
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'#000',display:'flex',flexDirection:'column',touchAction:'pan-y'}}
+         onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+
+      {/* Top bar */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px 0',flexShrink:0}}>
+        <div style={{fontSize:18,fontWeight:900,letterSpacing:-0.5}}>BOX<span style={{color:'var(--accent)'}}>SCORE</span></div>
+        {!isLast && (
+          <button onClick={finish} style={{background:'none',border:'none',color:'var(--text3)',fontSize:14,fontWeight:600,cursor:'pointer',padding:'6px 10px',borderRadius:8}}>
+            Skip
+          </button>
+        )}
+      </div>
+
+      {/* Slide */}
+      <div key={key} className={dir>=0?'ob-slide':'ob-slide-back'}
+           style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'12px 28px 8px',textAlign:'center',overflow:'hidden'}}>
+
+        {/* Emoji */}
+        <div style={{fontSize:96,lineHeight:1,marginBottom:20,filter:`drop-shadow(0 0 40px ${slide.color}55)`}}>
+          {slide.emoji}
+        </div>
+
+        {/* Label pill */}
+        <div style={{display:'inline-flex',alignItems:'center',gap:6,background:`${slide.color}18`,border:`1px solid ${slide.color}44`,borderRadius:20,padding:'4px 14px',fontSize:11,fontWeight:800,letterSpacing:1.4,textTransform:'uppercase',color:slide.color,marginBottom:14}}>
+          {slide.label}
+        </div>
+
+        {/* Title */}
+        <div style={{fontSize:30,fontWeight:900,letterSpacing:-0.5,color:'var(--text)',marginBottom:12,lineHeight:1.2,whiteSpace:'pre-line'}}>
+          {slide.title}
+        </div>
+
+        {/* Description */}
+        {slide.desc && (
+          <div style={{fontSize:15,color:'var(--text2)',lineHeight:1.65,maxWidth:310,marginBottom:20}}>
+            {slide.desc}
+          </div>
+        )}
+
+        {/* Tips */}
+        {slide.tips && (
+          <div style={{display:'flex',flexDirection:'column',gap:9,width:'100%',maxWidth:340,marginTop:slide.desc?0:4}}>
+            {slide.tips.map((t,i) => (
+              <div key={i} className="ob-tip">
+                <span className="ob-tip-icon">{t.icon}</span>
+                <span>{t.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{flexShrink:0,padding:'0 24px',paddingBottom:'max(28px,env(safe-area-inset-bottom))'}}>
+
+        {/* Step dots */}
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:7,marginBottom:16}}>
+          {OB_SLIDES.map((_,i) => (
+            <div key={i} onClick={()=>go(i)}
+                 style={{height:7,borderRadius:4,cursor:'pointer',transition:'all 0.3s ease',
+                   width: i===step ? 28 : 7,
+                   background: i===step ? slide.color : 'var(--s3)',
+                   opacity: i<step ? 0.5 : 1,
+                 }}/>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <button className="btn btn-primary btn-full"
+                style={{background:slide.color,color: slide.color==='#f0bf3d'?'#000':'#fff',fontSize:17,padding:'16px',borderRadius:16,fontWeight:800,transition:'background 0.3s'}}
+                onClick={isLast ? finish : ()=>go(step+1)}>
+          {isLast ? 'Start Exploring 🚀' : 'Next →'}
+        </button>
+
+        {/* Back link on non-first non-last */}
+        {step > 0 && !isLast && (
+          <div style={{textAlign:'center',marginTop:12,fontSize:13,color:'var(--text3)',cursor:'pointer'}} onClick={()=>go(step-1)}>
+            ← Back
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1799,6 +1960,7 @@ function App() {
   const [route,    setRoute]     = useState({page:'home',params:{}});
   const [toast,    setToast]     = useState(null);
   const [addGame,  setAddGame]   = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const toastTimer = useRef(null);
 
   const fetchApiGames = useCallback(async()=>{
@@ -2003,7 +2165,15 @@ function App() {
   );
 
   /* Auth screen */
-  if(!session) return <AuthPage onAuth={async(sess)=>{ setSession(sess); await loadData(sess.user.id); showToast('Welcome to BOXSCORE! 🎉'); }}/>;
+  if(!session) return <AuthPage onAuth={async(sess, isNew)=>{
+    setSession(sess);
+    await loadData(sess.user.id);
+    if(isNew || !localStorage.getItem('bs-onboarded')) {
+      setShowOnboarding(true);
+    } else {
+      showToast('Welcome back! 🎉');
+    }
+  }}/>;
 
   const activePage=route.page==='game'?null:route.page;
   const NAV=[{id:'home',label:'Home',Icon:IconHome},{id:'search',label:'Search',Icon:IconSearch},{id:'add',label:'',isAdd:true},{id:'friends',label:'Friends',Icon:IconPeople},{id:'profile',label:'Profile',Icon:IconPerson}];
@@ -2029,6 +2199,7 @@ function App() {
       {addGame&&<AddGameSheet onClose={()=>setAddGame(false)} onSelect={async(g)=>{await dispatch({type:'UPSERT_API_GAME',game:g});setAddGame(false);navigate('game',{gameId:'api_'+g.apiId});}}/>}
       {toast&&<div className="toast">{toast}</div>}
       <InstallBanner/>
+      {showOnboarding&&<OnboardingFlow onDone={()=>setShowOnboarding(false)}/>}
     </div>
   );
 }
