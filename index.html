@@ -624,8 +624,10 @@ function ActivityFeed({ state, navigate }) {
 function HomePage({ state, navigate }) {
   const [sport, setSport] = useState('all');
   const featured = useMemo(()=>{
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     const SPORT_RANK = {nfl:5,nba:4,mlb:3,ucl:3,epl:2,laliga:2,mls:2,seriea:2,bundesliga:2,ligue1:2,nhl:1};
+    const localDate = str => { if(!str)return''; const d=new Date(str); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
     const isPlayoffGame = g => {
       const combined = ((g.statusDetail||'')+(g.description||'')+(g.tags||[]).join(' ')).toLowerCase();
       return g.isPlayoff ||
@@ -633,17 +635,18 @@ function HomePage({ state, navigate }) {
     };
     const score = g => {
       let s = 0;
-      if(isPlayoffGame(g)) s += 5000;
-      const gameDate = (g.datetime||g.date||'').slice(0,10);
+      const gameDate = g.datetime ? localDate(g.datetime) : (g.date||'').slice(0,10);
       if(gameDate === today) s += 20000;
       if(g.status === 'in') s += 10000;
+      if(isPlayoffGame(g)) s += 5000;
       if(g.datetime){ const h=new Date(g.datetime).getHours(); if(h>=19&&h<=23) s+=100; }
       s += (SPORT_RANK[g.league]||SPORT_RANK[g.sport]||0)*10;
       s += state.reviews.filter(r=>r.gameId===g.id).length;
       return s;
     };
-    return state.games.slice().sort((a,b)=>score(b)-score(a))[0]||null;
-  },[state]);
+    const allGames = [...(state.apiGames||[]), ...state.games];
+    return allGames.slice().sort((a,b)=>score(b)-score(a))[0]||null;
+  },[state.games, state.apiGames, state.reviews]);
   const topPicks = useMemo(()=>state.games.map(g=>({...g,avg:avgRating(state.reviews.filter(r=>r.gameId===g.id))})).filter(g=>g.avg>0).sort((a,b)=>b.avg-a.avg).slice(0,8),[state]);
   const filtered = useMemo(()=>{
     const ok = g => sport==='all' || g.sport===sport;
