@@ -1260,9 +1260,10 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
   const color=getSportColor(game.sport), meta=getSportMeta(game.sport);
   const awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore;
   const toggleWL=()=>{dispatch({type:inWL?'REMOVE_WATCHLIST':'ADD_WATCHLIST',gameId});showToast(inWL?'Removed from saved':'✓ Saved');};
-  const submitReview=({rating,text,videoUrl,players})=>{
-    dispatch({type:'ADD_REVIEW',game,review:{id:'r_'+Date.now(),gameId,userId:state.currentUser.id,user:state.currentUser.name,rating,text,videoUrl,players:players||[],date:new Date().toISOString().split('T')[0]}});
-    setShowReview(false);showToast('✓ Review saved!');
+  const submitReview=async({rating,text,videoUrl,players})=>{
+    const ok=await dispatch({type:'ADD_REVIEW',game,review:{id:'r_'+Date.now(),gameId,userId:state.currentUser.id,user:state.currentUser.name,rating,text,videoUrl,players:players||[],date:new Date().toISOString().split('T')[0]}});
+    setShowReview(false);
+    showToast(ok?'✓ Review saved!':'❌ Could not save review — please try again');
   };
   const videos=[...(game.videoUrl?[{url:game.videoUrl,label:'Game Highlights'}]:[]),...reviews.filter(r=>r.videoUrl).map(r=>({url:r.videoUrl,label:`${r.user}'s clip`}))];
   const saveSeries=async({awaySeriesWins,homeSeriesWins,seriesType,isPlayoff})=>{
@@ -2110,7 +2111,7 @@ function App() {
     const navigate = (page,params={}) => setRoute({page,params});
   const showToast = useCallback(msg=>{ setToast(msg); clearTimeout(toastTimer.current); toastTimer.current=setTimeout(()=>setToast(null),2300); },[]);
 
-  const loadData = useCallback(async(userId)=>{
+  const loadData = useCallback(async(userId, userMeta={})=>{
     try {
       const [gR,rR,lR,wR,pR,fR,bR,nR] = await Promise.all([
         sb.from('games').select('*').order('date',{ascending:false}),
@@ -2127,7 +2128,16 @@ function App() {
       setReviews((rR.data||[]).map(normalizeReview));
       setLikes(lR.data||[]);
       setWatchlist((wR.data||[]).map(w=>w.game_id));
-      setProfile(pR.data);
+      // Ensure profile row exists — create from auth metadata if missing
+      let profileRow = pR.data;
+      if(!profileRow){
+        const username = userMeta.username || `fan_${userId.slice(-4)}`;
+        const {data:np} = await sb.from('profiles')
+          .upsert({id:userId, username, fav_sport:userMeta.fav_sport||'nba'},{onConflict:'id'})
+          .select().single();
+        profileRow = np || {id:userId, username, fav_sport:userMeta.fav_sport||'nba'};
+      }
+      setProfile(profileRow);
       setNotifications((nR.data||[]).map(normalizeNotif));
       // Recover any games referenced by reviews but not yet in the games table
       const loadedIds = new Set(loadedGames.map(g=>g.id));
@@ -2148,7 +2158,7 @@ function App() {
   },[]);
 
   useEffect(()=>{
-    sb.auth.getSession().then(({data:{session}})=>{ setSession(session); if(session)loadData(session.user.id); else setLoading(false); });
+    sb.auth.getSession().then(({data:{session}})=>{ setSession(session); if(session)loadData(session.user.id, session.user.user_metadata||{}); else setLoading(false); });
     const {data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{ setSession(session); if(!session){setGames([]);setReviews([]);setLikes([]);setWatchlist([]);setFollows([]);setBlocks([]);setProfile(null);setNotifications([]);} });
     return()=>subscription.unsubscribe();
   },[]);
@@ -2189,14 +2199,17 @@ function App() {
 
   const dispatch = useCallback(async(action)=>{
     const uid = session?.user?.id;
-    if(!uid) return;
+    if(!uid) return false;
+    try {
     switch(action.type){
       case 'ADD_REVIEW': {
         const r=action.review, g=action.game;
+        const uname = profile?.username || session?.user?.user_metadata?.username || `fan_${uid.slice(-4)}`;
         if(g?.fromApi) await ensureGameInDb(g,uid);
-        const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:profile.username,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]},{onConflict:'game_id,user_id'}).select().single();
-        if(!error&&data){setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);if(g?.fromApi)setGames(prev=>prev.find(x=>x.id===g.id)?prev:[...prev,g]);}
-        break;
+        const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]},{onConflict:'game_id,user_id'}).select().single();
+        if(error){console.error('review save error',error);return false;}
+        if(data){setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);if(g?.fromApi)setGames(prev=>prev.find(x=>x.id===g.id)?prev:[...prev,g]);}
+        return true;
       }
       case 'DELETE_REVIEW': {
         await sb.from('reviews').delete().eq('id',action.reviewId).eq('user_id',uid);
@@ -2210,7 +2223,7 @@ function App() {
           const like={review_id:action.reviewId,user_id:uid}; await sb.from('likes').insert(like); setLikes(prev=>[...prev,like]);
           const review=reviews.find(r=>r.id===action.reviewId);
           if(review&&review.userId!==uid){
-            const notifRow={user_id:review.userId,type:'like',from_user_id:uid,from_username:profile.username,game_id:review.gameId,review_id:action.reviewId};
+            const notifRow={user_id:review.userId,type:'like',from_user_id:uid,from_username:profile?.username||'',game_id:review.gameId,review_id:action.reviewId};
             const {data:nd}=await sb.from('notifications').insert(notifRow).select().single();
             if(nd) setNotifications(prev=>[normalizeNotif(nd),...prev]);
           }
@@ -2223,7 +2236,7 @@ function App() {
         await sb.from('follows').insert({follower_id:uid,following_id:action.userId});
         setFollows(prev=>[...prev,{follower_id:uid,following_id:action.userId,following_username:action.username||''}]);
         if(action.userId!==uid){
-          const notifRow={user_id:action.userId,type:'follow',from_user_id:uid,from_username:profile.username};
+          const notifRow={user_id:action.userId,type:'follow',from_user_id:uid,from_username:profile?.username||''};
           await sb.from('notifications').insert(notifRow);
         }
         break;
@@ -2282,6 +2295,7 @@ function App() {
         break;
       }
     }
+    } catch(e){ console.error('dispatch error',action.type,e); return false; }
   },[session,profile,likes,reviews,notifications]);
 
   /* Loading screen */
@@ -2295,7 +2309,7 @@ function App() {
   /* Auth screen */
   if(!session) return <AuthPage onAuth={async(sess, isNew)=>{
     setSession(sess);
-    await loadData(sess.user.id);
+    await loadData(sess.user.id, sess.user.user_metadata||{});
     if(isNew || !localStorage.getItem('bs-onboarded')) {
       setShowOnboarding(true);
     } else {
