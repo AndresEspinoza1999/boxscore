@@ -313,6 +313,14 @@ function TeamLogo({ name, sport, size=28, espnId=null }) {
   return <img src={url} alt={name} width={size} height={size} style={{borderRadius:r,flexShrink:0,objectFit:'contain',display:'block'}} onError={()=>setFailed(true)}/>;
 }
 
+function AvatarImg({ name, url, size=36, style:sx={} }) {
+  const [failed,setFailed]=useState(false);
+  const colors=['#ff6b35','#4895ef','#47d98e','#e5383b','#00c3ff','#f0bf3d'];
+  const bg=colors[(name||'').charCodeAt(0)%colors.length];
+  if(url&&!failed) return <img src={url} alt={name} width={size} height={size} style={{borderRadius:'50%',objectFit:'cover',flexShrink:0,...sx}} onError={()=>setFailed(true)}/>;
+  return <div style={{width:size,height:size,borderRadius:'50%',background:`${bg}22`,color:bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*0.38,fontWeight:800,flexShrink:0,...sx}}>{(name||'?').charAt(0).toUpperCase()}</div>;
+}
+
 /* ── NORMALIZE DB → APP ── */
 const normalizeGame = g => ({
   id:g.id, sport:g.sport, league:g.league||g.sport, home:g.home, away:g.away,
@@ -333,6 +341,7 @@ const normalizeReview = r => ({
   players:r.players||[],
   date:r.created_at ? r.created_at.split('T')[0] : '',
 });
+const normalizeNotif = n => ({id:n.id,type:n.type,fromUserId:n.from_user_id,fromUsername:n.from_username||'',gameId:n.game_id,reviewId:n.review_id,read:n.read,date:n.created_at});
 
 /* ── ESPN API ── */
 const SPORT_PARENT = {nba:'nba',nfl:'nfl',mlb:'mlb',nhl:'nhl',mls:'soccer',epl:'soccer',laliga:'soccer',ucl:'soccer',seriea:'soccer',bundesliga:'soccer',ligue1:'soccer'};
@@ -470,6 +479,7 @@ function IconSearch({ active }) { return <svg viewBox="0 0 24 24" fill="none" st
 function IconTrophy({ active }) { return active ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5h2V3H3v2h2C5 9.4 7.4 13 11 13.9V16H8v2h8v-2h-3v-2.1C16.6 13 19 9.4 19 5zM5 5h14c0 3.3-2.1 6-5 7h-4C7.1 11 5 8.3 5 5zM12 20a2 2 0 100-4 2 2 0 000 4z"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 21h8M12 17v4M17 5h3a1 1 0 011 1v1a4 4 0 01-4 4M7 5H4a1 1 0 00-1 1v1a4 4 0 004 4M6 5V3h12v2M6 5c0 5.5 2.7 8.5 6 9 3.3-.5 6-3.5 6-9"/></svg>; }
 function IconPerson({ active }) { return active ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
 function IconPeople({ active }) { return active ? <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg> : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>; }
+function IconBell() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>; }
 
 /* ── GAME CARD ── */
 function GameCard({ game, reviews, onPress }) {
@@ -599,6 +609,36 @@ function LikeBtn({ reviewId, likes, currentUserId, onToggle }) {
   );
 }
 
+function usePullToRefresh(onRefresh) {
+  const ref = useRef(null);
+  const [dist, setDist] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const startY = useRef(0);
+  const distRef = useRef(0);
+  const THRESHOLD = 64;
+  useEffect(()=>{
+    const el = ref.current;
+    if(!el) return;
+    const onStart = e => { startY.current = e.touches[0].pageY; };
+    const onMove = e => {
+      if(el.scrollTop > 2) { startY.current = e.touches[0].pageY; return; }
+      const d = Math.max(0,(e.touches[0].pageY - startY.current)*0.45);
+      distRef.current = d;
+      setDist(Math.min(d, THRESHOLD+16));
+    };
+    const onEnd = async () => {
+      const d = distRef.current;
+      distRef.current = 0; setDist(0);
+      if(d >= THRESHOLD) { setRefreshing(true); await onRefresh(); setRefreshing(false); }
+    };
+    el.addEventListener('touchstart', onStart, {passive:true});
+    el.addEventListener('touchmove', onMove, {passive:true});
+    el.addEventListener('touchend', onEnd);
+    return()=>{ el.removeEventListener('touchstart',onStart); el.removeEventListener('touchmove',onMove); el.removeEventListener('touchend',onEnd); };
+  },[onRefresh]);
+  return { ref, dist, refreshing, THRESHOLD };
+}
+
 /* ── ACTIVITY FEED ── */
 function ActivityFeed({ state, navigate }) {
   const recent = useMemo(() => [...state.reviews].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,10).map(r=>{const g=state.games.find(g=>g.id===r.gameId);return g?{...r,game:g}:null;}).filter(Boolean),[state.reviews,state.games]);
@@ -626,9 +666,50 @@ function ActivityFeed({ state, navigate }) {
   );
 }
 
+/* ── NOTIFICATIONS SHEET ── */
+function NotificationsSheet({ notifications, games, apiGames, onClose, onMarkRead, navigate }) {
+  const allGames = useMemo(()=>[...(apiGames||[]),...games],[apiGames,games]);
+  useEffect(()=>{ if(notifications.some(n=>!n.read)) onMarkRead(); },[]);
+  const relTime = d => { if(!d)return''; const s=Math.floor((Date.now()-new Date(d))/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; };
+  const icon = t => t==='like'?'❤️':t==='follow'?'👤':'🔔';
+  const text = n => {
+    const g = n.gameId ? allGames.find(x=>x.id===n.gameId) : null;
+    if(n.type==='like') return <span><b>{n.fromUsername}</b>{' liked your review'}{g?` of ${abbr(g.away)} vs ${abbr(g.home)}`:''}</span>;
+    if(n.type==='follow') return <span><b>{n.fromUsername}</b>{' started following you'}</span>;
+    return <span>{n.fromUsername}</span>;
+  };
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet" style={{maxHeight:'75vh',display:'flex',flexDirection:'column'}}>
+        <div className="sheet-handle"/>
+        <div style={{fontSize:17,fontWeight:800,marginBottom:12,flexShrink:0}}>Notifications</div>
+        {notifications.length===0
+          ?<div className="empty"><div className="empty-icon">🔔</div><p>No notifications yet</p></div>
+          :<div style={{overflowY:'auto',flex:1}}>
+            {notifications.map(n=>(
+              <div key={n.id} style={{display:'flex',gap:12,padding:'12px 0',borderBottom:'1px solid var(--border)',cursor:n.gameId||n.fromUserId?'pointer':'default',background:n.read?'transparent':'color-mix(in srgb,var(--accent) 6%,transparent)',borderRadius:8}}
+                onClick={()=>{if(n.gameId)navigate('game',{gameId:n.gameId});else if(n.fromUserId)navigate('public_profile',{userId:n.fromUserId,username:n.fromUsername});onClose();}}>
+                <div style={{fontSize:20,flexShrink:0,paddingTop:2}}>{icon(n.type)}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,color:'var(--text)',lineHeight:1.4}}>{text(n)}</div>
+                  <div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>{relTime(n.date)}</div>
+                </div>
+                {!n.read&&<div style={{width:7,height:7,borderRadius:'50%',background:'var(--accent)',flexShrink:0,marginTop:5}}/>}
+              </div>
+            ))}
+          </div>}
+      </div>
+    </div>
+  );
+}
+
 /* ── HOME PAGE ── */
-function HomePage({ state, navigate }) {
+function HomePage({ state, navigate, onRefresh, notifications, onMarkNotifsRead }) {
   const [sport, setSport] = useState('all');
+  const [showNotifs, setShowNotifs] = useState(false);
+  const noop = useCallback(()=>{},[]);
+  const { ref:pullRef, dist:pullDist, refreshing:pullRefreshing, THRESHOLD:PULL_THRESHOLD } = usePullToRefresh(onRefresh||noop);
+  const unreadCount = (notifications||[]).filter(n=>!n.read).length;
   const featured = useMemo(()=>{
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
@@ -654,6 +735,14 @@ function HomePage({ state, navigate }) {
     return allGames.slice().sort((a,b)=>score(b)-score(a))[0]||null;
   },[state.games, state.apiGames, state.reviews]);
   const topPicks = useMemo(()=>state.games.map(g=>({...g,avg:avgRating(state.reviews.filter(r=>r.gameId===g.id))})).filter(g=>g.avg>0).sort((a,b)=>b.avg-a.avg).slice(0,8),[state]);
+  const trending = useMemo(()=>{
+    const cutoff = new Date(Date.now()-7*24*60*60*1000).toISOString().split('T')[0];
+    const allG = [...(state.apiGames||[]),...state.games];
+    const counts = {};
+    state.reviews.filter(r=>(r.date||'')>=cutoff).forEach(r=>{counts[r.gameId]=(counts[r.gameId]||0)+1;});
+    return Object.entries(counts).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1]).slice(0,8)
+      .map(([id,cnt])=>{const g=allG.find(g=>g.id===id);return g?{...g,recentCnt:cnt}:null;}).filter(Boolean);
+  },[state.reviews,state.games,state.apiGames]);
   const filtered = useMemo(()=>{
     const ok = g => sport==='all' || g.sport===sport;
     const reviewedIds = new Set(state.reviews.map(r=>r.gameId));
@@ -676,8 +765,18 @@ function HomePage({ state, navigate }) {
   const liveGames = (state.apiGames||[]).filter(g=>g.status==='in'&&(sport==='all'||g.sport===sport));
   const upcomingGames = (state.apiGames||[]).filter(g=>g.status==='pre'&&(sport==='all'||g.sport===sport)).slice(0,6);
   return (
-    <div className="page">
-      <div className="app-hd"><div><div className="app-logo"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" style={{flexShrink:0}}><rect x="0.75" y="0.75" width="20.5" height="16.5" rx="3.75" fill="#0a84ff" fillOpacity="0.12" stroke="#0a84ff" strokeWidth="1.5"/><rect x="4" y="4.5" width="6" height="2" rx="1" fill="#0a84ff"/><rect x="14" y="4.5" width="4" height="2" rx="1" fill="#0a84ff"/><rect x="4" y="11.5" width="7" height="2" rx="1" fill="white" fillOpacity="0.35"/><rect x="14" y="11.5" width="4" height="2" rx="1" fill="white" fillOpacity="0.35"/></svg>BOXSCORE</div><div className="app-sub">Rate every game</div></div></div>
+    <div className="page" ref={pullRef}>
+      {(pullDist>0||pullRefreshing)&&(
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',height:Math.min(pullDist,PULL_THRESHOLD),overflow:'hidden',transition:pullDist===0?'height 0.3s':undefined}}>
+          <div className="spinner" style={{width:20,height:20,opacity:Math.min(pullDist/PULL_THRESHOLD,1)}}/>
+        </div>
+      )}
+      <div className="app-hd"><div><div className="app-logo"><svg width="22" height="18" viewBox="0 0 22 18" fill="none" style={{flexShrink:0}}><rect x="0.75" y="0.75" width="20.5" height="16.5" rx="3.75" fill="#0a84ff" fillOpacity="0.12" stroke="#0a84ff" strokeWidth="1.5"/><rect x="4" y="4.5" width="6" height="2" rx="1" fill="#0a84ff"/><rect x="14" y="4.5" width="4" height="2" rx="1" fill="#0a84ff"/><rect x="4" y="11.5" width="7" height="2" rx="1" fill="white" fillOpacity="0.35"/><rect x="14" y="11.5" width="4" height="2" rx="1" fill="white" fillOpacity="0.35"/></svg>BOXSCORE</div><div className="app-sub">Rate every game</div></div>
+        <div style={{position:'relative',cursor:'pointer'}} onClick={()=>setShowNotifs(true)}>
+          <IconBell/>
+          {unreadCount>0&&<div style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',borderRadius:'50%',width:16,height:16,fontSize:10,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>{unreadCount>9?'9+':unreadCount}</div>}
+        </div>
+      </div>
       <div style={{position:'sticky',top:0,zIndex:10,background:'var(--bg)',paddingBottom:4,borderBottom:'1px solid var(--border)'}}>
         <div className="sport-scroll">{SPORTS.map(s=><div key={s.id} className={`s-pill sc-${s.id}${sport===s.id?' active':''}`} onClick={()=>setSport(s.id)}>{s.id!=='all'&&<span className="s-dot"/>}{s.emoji} {s.label}</div>)}</div>
       </div>
@@ -729,6 +828,10 @@ function HomePage({ state, navigate }) {
       )}
       {featured&&sport==='all'&&<><div className="section-hd" style={{paddingTop:8}}>{featured.status==='in'?<span style={{display:'flex',alignItems:'center',gap:6}}><span className="live-dot" style={{width:8,height:8}}/><span className="section-title">Live · Featured</span></span>:<span className="section-title">⭐ Featured</span>}</div><HeroCard game={featured} reviews={state.reviews} onPress={()=>navigate('game',{gameId:featured.id})}/></>}
       {topPicks.length>0&&sport==='all'&&<><div className="section-hd" style={{paddingTop:14}}><span className="section-title">🏆 Top Rated</span></div><div className="h-strip">{topPicks.map(g=><MiniCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}</div></>}
+      {trending.length>0&&sport==='all'&&(
+        <><div className="section-hd" style={{paddingTop:14}}><span className="section-title">🔥 Trending</span><span className="section-count">{trending.length}</span></div>
+        <div className="h-strip">{trending.map(g=><MiniCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}</div></>
+      )}
       <div className="section-hd" style={{paddingTop:14}}>
         <span className="section-title">{sport==='all'?'Recent Games':`${getSportMeta(sport).label} Games`}</span>
         {state.apiLoading?<div className="spinner" style={{width:16,height:16,borderWidth:2}}/>:<span className="section-count">{filtered.length}</span>}
@@ -741,6 +844,7 @@ function HomePage({ state, navigate }) {
         ):filtered.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
       </div>
       {sport==='all'&&<ActivityFeed state={state} navigate={navigate}/>}
+      {showNotifs&&<NotificationsSheet notifications={notifications} games={state.games} apiGames={state.apiGames} onClose={()=>setShowNotifs(false)} onMarkRead={onMarkNotifsRead} navigate={navigate}/>}
     </div>
   );
 }
@@ -778,8 +882,9 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
         <div className="back-btn" onClick={()=>navigate('home')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Back</div>
       </div>
       <div className="profile-hd">
-        <div className="avatar">{displayName.charAt(0).toUpperCase()}</div>
+        <AvatarImg name={displayName} url={profileData?.avatar_url} size={72}/>
         <div className="profile-name">{displayName}</div>
+        {profileData?.bio&&<div style={{fontSize:13,color:'var(--text2)',textAlign:'center',margin:'4px 16px 0',lineHeight:1.4}}>{profileData.bio}</div>}
         {!isSelf&&(
           <button className={"btn btn-sm " + (isFollowing?'btn-ghost':'btn-primary')} style={{margin:'12px auto 0',display:'flex'}}
             onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId});showToast(isFollowing?'Unfollowed':'Following '+displayName+'!');}}>
@@ -1449,6 +1554,8 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   const [tab,setTab]=useState('reviews');
   const [editing,setEditing]=useState(false);
   const [nameVal,setNameVal]=useState(state.currentUser.name);
+  const [bioVal, setBioVal] = useState(state.profile?.bio||'');
+  const [avatarVal, setAvatarVal] = useState(state.profile?.avatar_url||'');
   const myReviews=state.reviews.filter(r=>r.userId===state.currentUser.id);
   const watchGames=state.games.filter(g=>state.watchlist.includes(g.id));
   const avgMine=myReviews.length?(myReviews.reduce((a,b)=>a+b.rating,0)/myReviews.length).toFixed(1):'—';
@@ -1457,9 +1564,13 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   return (
     <div className="page">
       <div className="profile-hd">
-        <div className="avatar">{state.currentUser.name.charAt(0).toUpperCase()}</div>
-        {editing?(<div style={{display:'flex',gap:8,maxWidth:240,margin:'0 auto 6px'}}><input value={nameVal} onChange={e=>setNameVal(e.target.value)} style={{textAlign:'center'}} onKeyDown={e=>e.key==='Enter'&&saveName()}/><button className="btn btn-primary btn-sm" onClick={saveName}>Save</button></div>):(<div className="profile-name" onClick={()=>setEditing(true)} style={{cursor:'pointer',marginBottom:4}}>{state.currentUser.name} <span style={{fontSize:14,opacity:0.5}}>✏️</span></div>)}
-        <div style={{fontSize:12,color:'var(--text3)'}}>Tap name to edit</div>
+        <AvatarImg name={state.currentUser.name} url={state.profile?.avatar_url} size={72}/>
+        {editing?(<div style={{display:'flex',gap:8,maxWidth:240,margin:'8px auto 6px'}}><input value={nameVal} onChange={e=>setNameVal(e.target.value)} style={{textAlign:'center'}} onKeyDown={e=>e.key==='Enter'&&saveName()}/><button className="btn btn-primary btn-sm" onClick={saveName}>Save</button></div>):(<div className="profile-name" onClick={()=>setEditing(true)} style={{cursor:'pointer',marginBottom:4,marginTop:8}}>{state.currentUser.name} <span style={{fontSize:14,opacity:0.5}}>✏️</span></div>)}
+        <div style={{maxWidth:280,margin:'8px auto 0',display:'flex',flexDirection:'column',gap:8}}>
+          <input value={avatarVal} onChange={e=>setAvatarVal(e.target.value)} placeholder="Avatar image URL (optional)" style={{fontSize:12,textAlign:'center'}}/>
+          <textarea rows={2} value={bioVal} onChange={e=>setBioVal(e.target.value.slice(0,150))} placeholder="Bio (optional, 150 chars)" style={{fontSize:12,resize:'none'}}/>
+          <button className="btn btn-primary btn-sm" onClick={()=>{dispatch({type:'UPDATE_PROFILE',bio:bioVal,avatarUrl:avatarVal});showToast('✓ Profile updated');}}>Save Profile</button>
+        </div>
         <div className="profile-stats">
           <div><div className="stat-num">{myReviews.length}</div><div className="stat-lbl">Reviews</div></div>
           <div><div className="stat-num">{followingCount}</div><div className="stat-lbl">Following</div></div>
@@ -1618,6 +1729,7 @@ function App() {
   const [watchlist,setWatchlist] = useState([]);
   const [follows,   setFollows]   = useState([]);
   const [blocks,    setBlocks]    = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading,  setLoading]   = useState(true);
   const [apiGames, setApiGames]  = useState([]);
   const [apiLoading, setApiLoading] = useState(false);
@@ -1668,7 +1780,7 @@ function App() {
 
   const loadData = useCallback(async(userId)=>{
     try {
-      const [gR,rR,lR,wR,pR,fR,bR] = await Promise.all([
+      const [gR,rR,lR,wR,pR,fR,bR,nR] = await Promise.all([
         sb.from('games').select('*').order('date',{ascending:false}),
         sb.from('reviews').select('*').order('created_at',{ascending:false}),
         sb.from('likes').select('*'),
@@ -1676,12 +1788,14 @@ function App() {
         sb.from('profiles').select('*').eq('id',userId).single(),
         sb.from('follows').select('*').eq('follower_id',userId),
         sb.from('blocks').select('*').eq('blocker_id',userId),
+        sb.from('notifications').select('*').eq('user_id',userId).order('created_at',{ascending:false}).limit(30),
       ]);
       setGames((gR.data||[]).map(normalizeGame));
       setReviews((rR.data||[]).map(normalizeReview));
       setLikes(lR.data||[]);
       setWatchlist((wR.data||[]).map(w=>w.game_id));
       setProfile(pR.data);
+      setNotifications((nR.data||[]).map(normalizeNotif));
       // Enrich follows + blocks with usernames
       const followData = fR.data||[], blockData = bR.data||[];
       const extraIds = [...new Set([...followData.map(f=>f.following_id),...blockData.map(b=>b.blocked_id)])];
@@ -1695,7 +1809,7 @@ function App() {
 
   useEffect(()=>{
     sb.auth.getSession().then(({data:{session}})=>{ setSession(session); if(session)loadData(session.user.id); else setLoading(false); });
-    const {data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{ setSession(session); if(!session){setGames([]);setReviews([]);setLikes([]);setWatchlist([]);setFollows([]);setBlocks([]);setProfile(null);} });
+    const {data:{subscription}}=sb.auth.onAuthStateChange((_e,session)=>{ setSession(session); if(!session){setGames([]);setReviews([]);setLikes([]);setWatchlist([]);setFollows([]);setBlocks([]);setProfile(null);setNotifications([]);} });
     return()=>subscription.unsubscribe();
   },[]);
 
@@ -1708,8 +1822,10 @@ function App() {
     watchlist,
     follows,
     blocks,
+    notifications,
+    profile,
     currentUser: { id: session?.user?.id||'', name: profile?.username||'' },
-  }),[games,reviews,likes,watchlist,follows,blocks,session,profile]);
+  }),[games,reviews,likes,watchlist,follows,blocks,notifications,session,profile]);
 
   const ensureGameInDb = async(g, uid) => {
     await sb.from('games').upsert({
@@ -1740,12 +1856,28 @@ function App() {
       case 'TOGGLE_LIKE': {
         const isLiked=likes.some(l=>l.review_id===action.reviewId&&l.user_id===uid);
         if(isLiked){ await sb.from('likes').delete().match({review_id:action.reviewId,user_id:uid}); setLikes(prev=>prev.filter(l=>!(l.review_id===action.reviewId&&l.user_id===uid))); }
-        else { const like={review_id:action.reviewId,user_id:uid}; await sb.from('likes').insert(like); setLikes(prev=>[...prev,like]); }
+        else {
+          const like={review_id:action.reviewId,user_id:uid}; await sb.from('likes').insert(like); setLikes(prev=>[...prev,like]);
+          const review=reviews.find(r=>r.id===action.reviewId);
+          if(review&&review.userId!==uid){
+            const notifRow={user_id:review.userId,type:'like',from_user_id:uid,from_username:profile.username,game_id:review.gameId,review_id:action.reviewId};
+            const {data:nd}=await sb.from('notifications').insert(notifRow).select().single();
+            if(nd) setNotifications(prev=>[normalizeNotif(nd),...prev]);
+          }
+        }
         break;
       }
       case 'ADD_WATCHLIST': { const wg=(state.apiGames||[]).find(g=>g.id===action.gameId); if(wg?.fromApi)await ensureGameInDb(wg,uid); await sb.from('watchlist').insert({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>[...prev,action.gameId]); break; }
       case 'REMOVE_WATCHLIST': { await sb.from('watchlist').delete().match({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>prev.filter(id=>id!==action.gameId)); break; }
-      case 'FOLLOW': { await sb.from('follows').insert({follower_id:uid,following_id:action.userId}); setFollows(prev=>[...prev,{follower_id:uid,following_id:action.userId,following_username:action.username||''}]); break; }
+      case 'FOLLOW': {
+        await sb.from('follows').insert({follower_id:uid,following_id:action.userId});
+        setFollows(prev=>[...prev,{follower_id:uid,following_id:action.userId,following_username:action.username||''}]);
+        if(action.userId!==uid){
+          const notifRow={user_id:action.userId,type:'follow',from_user_id:uid,from_username:profile.username};
+          await sb.from('notifications').insert(notifRow);
+        }
+        break;
+      }
       case 'UNFOLLOW': { await sb.from('follows').delete().match({follower_id:uid,following_id:action.userId}); setFollows(prev=>prev.filter(f=>!(f.follower_id===uid&&f.following_id===action.userId))); break; }
       case 'BLOCK': {
         await sb.from('blocks').insert({blocker_id:uid,blocked_id:action.userId});
@@ -1783,8 +1915,21 @@ function App() {
         break;
       }
       case 'SET_USER_NAME': { await sb.from('profiles').update({username:action.name}).eq('id',uid); setProfile(prev=>({...prev,username:action.name})); break; }
+      case 'UPDATE_PROFILE': {
+        const updates = {username:action.name||profile.username};
+        if(action.bio!==undefined) updates.bio = action.bio;
+        if(action.avatarUrl!==undefined) updates.avatar_url = action.avatarUrl;
+        await sb.from('profiles').update(updates).eq('id',uid);
+        setProfile(prev=>({...prev,...updates}));
+        break;
+      }
+      case 'MARK_NOTIFS_READ': {
+        await sb.from('notifications').update({read:true}).eq('user_id',uid).eq('read',false);
+        setNotifications(prev=>prev.map(n=>({...n,read:true})));
+        break;
+      }
     }
-  },[session,profile,likes]);
+  },[session,profile,likes,reviews,notifications]);
 
   /* Loading screen */
   if(loading) return (
@@ -1803,7 +1948,7 @@ function App() {
   return (
     <div style={{height:'100dvh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
       <div style={{flex:1,overflow:'hidden'}}>
-        {route.page==='home'        &&<HomePage        state={state} navigate={navigate}/>}
+        {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]}/>}
         {route.page==='search'      &&<SearchPage      state={state} navigate={navigate}/>}
         {route.page==='leaderboard' &&<LeaderboardPage state={state} navigate={navigate}/>}
         {route.page==='friends'     &&<FriendsPage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
