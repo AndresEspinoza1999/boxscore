@@ -623,7 +623,27 @@ function ActivityFeed({ state, navigate }) {
 /* ── HOME PAGE ── */
 function HomePage({ state, navigate }) {
   const [sport, setSport] = useState('all');
-  const featured = useMemo(()=>{const rv=state.games.map(g=>({...g,avg:avgRating(state.reviews.filter(r=>r.gameId===g.id)),cnt:state.reviews.filter(r=>r.gameId===g.id).length})).sort((a,b)=>b.cnt-a.cnt);return rv[0]||null;},[state]);
+  const featured = useMemo(()=>{
+    const today = new Date().toISOString().split('T')[0];
+    const SPORT_RANK = {nfl:5,nba:4,mlb:3,ucl:3,epl:2,laliga:2,mls:2,seriea:2,bundesliga:2,ligue1:2,nhl:1};
+    const isPlayoffGame = g => {
+      const combined = ((g.statusDetail||'')+(g.description||'')+(g.tags||[]).join(' ')).toLowerCase();
+      return g.isPlayoff ||
+        /game \d|finals|conference final|semifinal|quarterfinal|playoff|super bowl|stanley cup|world series/i.test(combined);
+    };
+    const score = g => {
+      let s = 0;
+      if(isPlayoffGame(g)) s += 10000;
+      const gameDate = (g.datetime||g.date||'').slice(0,10);
+      if(gameDate === today) s += 1000;
+      if(g.status === 'in') s += 500;
+      if(g.datetime){ const h=new Date(g.datetime).getHours(); if(h>=19&&h<=23) s+=100; }
+      s += (SPORT_RANK[g.league]||SPORT_RANK[g.sport]||0)*10;
+      s += state.reviews.filter(r=>r.gameId===g.id).length;
+      return s;
+    };
+    return state.games.slice().sort((a,b)=>score(b)-score(a))[0]||null;
+  },[state]);
   const topPicks = useMemo(()=>state.games.map(g=>({...g,avg:avgRating(state.reviews.filter(r=>r.gameId===g.id))})).filter(g=>g.avg>0).sort((a,b)=>b.avg-a.avg).slice(0,8),[state]);
   const filtered = useMemo(()=>{
     const ok = g => sport==='all' || g.sport===sport;
