@@ -635,7 +635,7 @@ function HomePage({ state, navigate }) {
       let s = 0;
       if(isPlayoffGame(g)) s += 10000;
       const gameDate = (g.datetime||g.date||'').slice(0,10);
-      if(gameDate === today) s += 1000;
+      if(gameDate === today) s += 20000;
       if(g.status === 'in') s += 500;
       if(g.datetime){ const h=new Date(g.datetime).getHours(); if(h>=19&&h<=23) s+=100; }
       s += (SPORT_RANK[g.league]||SPORT_RANK[g.sport]||0)*10;
