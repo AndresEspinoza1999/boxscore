@@ -91,7 +91,9 @@
     .gc-avg{font-size:12px;font-weight:700;color:var(--accent);}
     .gc-cnt{font-size:11px;color:var(--text3);}
     /* HERO CARD */
-    .hero-card{background:var(--s2);border:1px solid var(--border);border-radius:20px;margin:0 16px;overflow:hidden;cursor:pointer;}
+    .hero-card{background:var(--s2);border:1px solid var(--border);border-radius:20px;margin:0 16px;overflow:hidden;cursor:pointer;transition:box-shadow 0.3s;}
+    .hero-card--live{border-color:rgba(255,69,58,0.55);box-shadow:0 0 0 1px rgba(255,69,58,0.2),0 4px 24px rgba(255,69,58,0.18);animation:live-glow 2.4s ease-in-out infinite;}
+    @keyframes live-glow{0%,100%{box-shadow:0 0 0 1px rgba(255,69,58,0.2),0 4px 24px rgba(255,69,58,0.18);}50%{box-shadow:0 0 0 1px rgba(255,69,58,0.35),0 4px 32px rgba(255,69,58,0.32);}}
     .hero-card-top{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--border);}
     .hero-badge{font-size:12px;font-weight:700;color:var(--sport-c,var(--accent));}
     .hero-date{font-size:11px;color:var(--text3);margin-left:auto;}
@@ -521,11 +523,14 @@ function HeroCard({ game, reviews, onPress }) {
   const rv=reviews.filter(r=>r.gameId===game.id), avg=avgRating(rv), color=getSportColor(game.sport), meta=getSportMeta(game.sport);
   const leagueLabel = game.league?(LEAGUE_LABELS[game.league]||meta.label):meta.label;
   const awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore, hasScore=game.homeScore!==undefined;
+  const isLive = game.status==='in';
   return (
-    <div className={`hero-card sc-${game.sport}`} style={{['--sport-c']:color}} onClick={onPress}>
+    <div className={`hero-card sc-${game.sport}${isLive?' hero-card--live':''}`} style={{['--sport-c']:color}} onClick={onPress}>
       <div className="hero-card-top">
         <span className="hero-badge">{meta.emoji} {leagueLabel}</span>
-        <span className="hero-date">{formatDate(game.date)}</span>
+        {isLive
+          ? <span className="live-badge" style={{marginLeft:'auto'}}><span className="live-dot"/>LIVE {game.statusDetail||''}</span>
+          : <span className="hero-date">{formatDate(game.date)}</span>}
         {avg>0&&<Stars rating={avg} size={12}/>}
       </div>
       <div className="hero-matchup">
@@ -721,7 +726,7 @@ function HomePage({ state, navigate }) {
           </div>
         </div>
       )}
-      {featured&&sport==='all'&&<><div className="section-hd" style={{paddingTop:8}}><span className="section-title">⭐ Featured</span></div><HeroCard game={featured} reviews={state.reviews} onPress={()=>navigate('game',{gameId:featured.id})}/></>}
+      {featured&&sport==='all'&&<><div className="section-hd" style={{paddingTop:8}}>{featured.status==='in'?<span style={{display:'flex',alignItems:'center',gap:6}}><span className="live-dot" style={{width:8,height:8}}/><span className="section-title">Live · Featured</span></span>:<span className="section-title">⭐ Featured</span>}</div><HeroCard game={featured} reviews={state.reviews} onPress={()=>navigate('game',{gameId:featured.id})}/></>}
       {topPicks.length>0&&sport==='all'&&<><div className="section-hd" style={{paddingTop:14}}><span className="section-title">🏆 Top Rated</span></div><div className="h-strip">{topPicks.map(g=><MiniCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}</div></>}
       <div className="section-hd" style={{paddingTop:14}}>
         <span className="section-title">{sport==='all'?'Recent Games':`${getSportMeta(sport).label} Games`}</span>
