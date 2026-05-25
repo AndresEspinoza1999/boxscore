@@ -492,8 +492,73 @@ function VideoPreview({ url }) {
 }
 
 function Stars({ rating, size=13 }) {
-  const full=Math.floor(rating), half=rating-full>=0.5;
-  return <span className="stars">{[1,2,3,4,5].map(i=><span key={i} className={i<=full?'star-f':half&&i===full+1?'star-f':'star-e'} style={{fontSize:size}}>{i<=full?'★':half&&i===full+1?'⯨':'☆'}</span>)}</span>;
+  return (
+    <span style={{display:'inline-flex',alignItems:'center',gap:Math.max(1,size*0.06),lineHeight:1,verticalAlign:'middle'}}>
+      {[1,2,3,4,5].map(i=>{
+        const pct=Math.max(0,Math.min(1,rating-(i-1)))*100;
+        return (
+          <span key={i} style={{position:'relative',display:'inline-block',fontSize:size,lineHeight:1,color:'rgba(255,255,255,0.15)'}}>
+            {'★'}
+            <span style={{position:'absolute',left:0,top:0,width:`${pct}%`,overflow:'hidden',color:'#f0bf3d',whiteSpace:'nowrap',lineHeight:'inherit'}}>{'★'}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+const STAR_LABELS={0.5:'Unwatchable',1:'Terrible',1.5:'Very Bad',2:'Bad',2.5:'Below Average',3:'Average',3.5:'Good',4:'Great',4.5:'Excellent',5:'Masterpiece'};
+
+function StarPicker({ rating, onChange }) {
+  const [hover,setHover]=useState(null);
+  const shown=hover??rating;
+  const containerRef=useRef(null);
+
+  const valFromTouch=(e)=>{
+    if(!containerRef.current)return null;
+    const rect=containerRef.current.getBoundingClientRect();
+    const t=e.touches?e.touches[0]:e.changedTouches?.[0];
+    if(!t)return null;
+    const x=t.clientX-rect.left;
+    const slotW=rect.width/5;
+    const idx=Math.max(0,Math.min(4,Math.floor(x/slotW)));
+    const frac=(x-idx*slotW)/slotW;
+    return idx+(frac<0.5?0.5:1);
+  };
+
+  return (
+    <div>
+      <div ref={containerRef} style={{display:'flex',justifyContent:'center',gap:6,marginBottom:10,touchAction:'none'}}
+        onMouseLeave={()=>setHover(null)}
+        onTouchMove={e=>{const v=valFromTouch(e);if(v)setHover(v);}}
+        onTouchEnd={e=>{const v=valFromTouch(e);if(v!==null)onChange(v);setHover(null);}}>
+        {[1,2,3,4,5].map(i=>{
+          const pct=Math.max(0,Math.min(1,shown-(i-1)))*100;
+          return (
+            <div key={i} style={{position:'relative',width:44,height:44,flexShrink:0,cursor:'pointer'}}>
+              {/* base star */}
+              <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:38,color:'rgba(255,255,255,0.12)',lineHeight:1,pointerEvents:'none',userSelect:'none'}}>★</div>
+              {/* filled overlay */}
+              <div style={{position:'absolute',top:0,left:0,height:'100%',width:`${pct}%`,overflow:'hidden',pointerEvents:'none'}}>
+                <div style={{width:44,display:'flex',alignItems:'center',justifyContent:'center',fontSize:38,color:'#f0bf3d',lineHeight:1,height:'100%',userSelect:'none'}}>★</div>
+              </div>
+              {/* left half → half-star */}
+              <div style={{position:'absolute',left:0,top:0,width:'50%',height:'100%',zIndex:2}}
+                onMouseEnter={()=>setHover(i-0.5)}
+                onClick={()=>onChange(i-0.5)}/>
+              {/* right half → full star */}
+              <div style={{position:'absolute',right:0,top:0,width:'50%',height:'100%',zIndex:2}}
+                onMouseEnter={()=>setHover(i)}
+                onClick={()=>onChange(i)}/>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{textAlign:'center',height:22}}>
+        {shown>0&&<span style={{fontSize:14,fontWeight:700,color:'#f0bf3d'}}>{shown} <span style={{color:'var(--text2)',fontWeight:500,fontSize:13}}>{STAR_LABELS[shown]||''}</span></span>}
+      </div>
+    </div>
+  );
 }
 
 /* ── SVG NAV ICONS ── */
@@ -1051,8 +1116,8 @@ function ReviewSheet({ game, onClose, onSubmit, existing }) {
         <div className="sheet-handle"/>
         <div style={{fontSize:17,fontWeight:800,marginBottom:4}}>{existing?'Edit Review':'Write a Review'}</div>
         <div style={{fontSize:13,color:'var(--text3)',marginBottom:20}}>{abbr(game.away)} vs {abbr(game.home)}</div>
-        <div className="t-micro" style={{marginBottom:8,textAlign:'center'}}>Your Rating</div>
-        <div className="star-picker">{[1,2,3,4,5].map(i=><span key={i} className="star-pick" onClick={()=>setRating(i)} style={{opacity:i<=rating?1:0.3}}>{i<=rating?'★':'☆'}</span>)}</div>
+        <div className="t-micro" style={{marginBottom:10,textAlign:'center'}}>Your Rating</div>
+        <StarPicker rating={rating} onChange={setRating}/>
         <div className="t-micro" style={{margin:'16px 0 8px'}}>Your Review <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional</span></div>
         <textarea rows={3} value={text} onChange={e=>setText(e.target.value)} placeholder="What made this game memorable?"/>
         <div className="t-micro" style={{margin:'14px 0 8px'}}>Player Spotlight <span style={{textTransform:'none',letterSpacing:0,fontWeight:400,fontSize:11,color:'var(--text3)'}}>optional · type name, tap grade</span></div>
@@ -1273,7 +1338,7 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
               <div style={{fontSize:30,fontWeight:900,color:'var(--accent)',lineHeight:1}}>{avgRating(reviews).toFixed(1)}</div>
               <div><Stars rating={avgRating(reviews)} size={16}/><div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>{reviews.length} review{reviews.length!==1?'s':''}</div></div>
             </div>
-            {[5,4,3,2,1].map(star=>{const cnt=reviews.filter(r=>r.rating===star).length;const pct=reviews.length?Math.round(cnt/reviews.length*100):0;return(
+            {[5,4,3,2,1].map(star=>{const cnt=reviews.filter(r=>Math.round(r.rating)===star).length;const pct=reviews.length?Math.round(cnt/reviews.length*100):0;return(
               <div key={star} style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
                 <span style={{fontSize:10,color:'var(--text3)',width:10,textAlign:'right',flexShrink:0}}>{star}</span>
                 <div style={{flex:1,height:5,background:'var(--s3)',borderRadius:3,overflow:'hidden'}}>
@@ -1510,7 +1575,7 @@ function FriendsPage({ state, dispatch, navigate, showToast }) {
                   <span>{r.game.away} vs {r.game.home}</span>
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:r.text?4:0}}>
-                  <span style={{color:'#f0bf3d',fontSize:12,letterSpacing:1}}>{'★'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                  <Stars rating={r.rating} size={12}/>
                   <span style={{fontSize:11,color:'var(--text3)'}}>{getSportMeta(r.game.sport).emoji} {relTime(r.date)}</span>
                 </div>
                 {r.text&&<div style={{fontSize:12,color:'var(--text2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'100%'}}>{r.text}</div>}
