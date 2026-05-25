@@ -372,6 +372,19 @@ async function fetchRecentLeagueGames(sportKey, count=10, daysBack=14) {
   } catch(e){ return []; }
 }
 
+async function fetchRoster(sportPath, teamId) {
+  if(!teamId||!sportPath) return [];
+  try {
+    const res=await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams/${teamId}/roster`);
+    const d=await res.json();
+    const a=d.athletes||[];
+    if(!a.length) return [];
+    // Flat array (soccer, NBA) vs grouped by position (NHL, MLB)
+    if(a[0]?.displayName) return a.map(p=>p.displayName).filter(Boolean);
+    return a.flatMap(g=>(g.items||[]).map(p=>p.displayName)).filter(Boolean);
+  } catch(e){ return []; }
+}
+
 function parseEspnEvent(ev, sportKey) {
   const comp=ev.competitions?.[0]||{}, comps=comp.competitors||[];
   const home=comps.find(c=>c.homeAway==='home')||comps[0]||{};
@@ -847,13 +860,32 @@ function ReviewSheet({ game, onClose, onSubmit, existing }) {
   const [videoUrl,setVideoUrl]=useState(existing?.videoUrl||'');
   const [players,setPlayers]=useState(existing?.players||[]);
   const [playerName,setPlayerName]=useState('');
+  const [roster,setRoster]=useState(null);
+  const [rosterLoading,setRosterLoading]=useState(false);
+  const [showSug,setShowSug]=useState(false);
   const color=getSportColor(game.sport);
 
-  const addPlayer = (grade) => {
-    const name = playerName.trim();
-    if(!name) return;
+  const loadRoster=useCallback(async()=>{
+    if(roster!==null||rosterLoading)return;
+    const path=LEAGUE_PATHS[game.league]||LEAGUE_PATHS[game.sport]||null;
+    if(!path||(!game.homeTeamId&&!game.awayTeamId)){setRoster([]);return;}
+    setRosterLoading(true);
+    const [away,home]=await Promise.all([fetchRoster(path,game.awayTeamId),fetchRoster(path,game.homeTeamId)]);
+    setRoster([...away,...home]);
+    setRosterLoading(false);
+  },[roster,rosterLoading,game]);
+
+  const suggestions=useMemo(()=>{
+    if(!roster||!playerName.trim()||!showSug)return[];
+    return roster.filter(p=>p.toLowerCase().includes(playerName.toLowerCase())).slice(0,6);
+  },[roster,playerName,showSug]);
+
+  const addPlayer=(grade)=>{
+    const name=playerName.trim();
+    if(!name)return;
     setPlayers(prev=>[...prev,{name,grade}]);
     setPlayerName('');
+    setShowSug(false);
   };
 
   return (
@@ -880,7 +912,25 @@ function ReviewSheet({ game, onClose, onSubmit, existing }) {
         )}
         {players.length<6&&(
           <div style={{display:'flex',gap:6,alignItems:'center'}}>
-            <input value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="Player name…" onKeyDown={e=>e.key==='Enter'&&playerName.trim()&&addPlayer('A')} style={{flex:1,height:36,padding:'0 12px',fontSize:14}}/>
+            <div style={{position:'relative',flex:1}}>
+              <input value={playerName}
+                onChange={e=>{setPlayerName(e.target.value);setShowSug(true);}}
+                onFocus={()=>{loadRoster();setShowSug(true);}}
+                onBlur={()=>setTimeout(()=>setShowSug(false),150)}
+                onKeyDown={e=>e.key==='Enter'&&playerName.trim()&&addPlayer('A')}
+                placeholder={rosterLoading?'Loading players…':'Player name…'}
+                style={{width:'100%',height:36,padding:'0 12px',fontSize:14}}
+              />
+              {suggestions.length>0&&(
+                <div className="ac-list" style={{position:'absolute',bottom:'calc(100% + 4px)',top:'auto',left:0,right:0,maxHeight:160,overflowY:'auto'}}>
+                  {suggestions.map(name=>(
+                    <div key={name} className="ac-item" onMouseDown={e=>e.preventDefault()} onClick={()=>{setPlayerName(name);setShowSug(false);}}>
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {GRADES.map(g=>(
               <button key={g} onClick={()=>addPlayer(g)} style={{width:34,height:34,borderRadius:8,border:'1.5px solid',borderColor:playerName.trim()?gradeColor(g):'var(--border)',background:playerName.trim()?gradeColor(g)+'18':'var(--s3)',color:playerName.trim()?gradeColor(g):'var(--text3)',fontWeight:900,fontSize:13,cursor:'pointer',flexShrink:0}}>
                 {g}
