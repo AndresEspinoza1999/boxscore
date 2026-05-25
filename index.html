@@ -1263,7 +1263,7 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
   const submitReview=async({rating,text,videoUrl,players})=>{
     const ok=await dispatch({type:'ADD_REVIEW',game,review:{id:'r_'+Date.now(),gameId,userId:state.currentUser.id,user:state.currentUser.name,rating,text,videoUrl,players:players||[],date:new Date().toISOString().split('T')[0]}});
     setShowReview(false);
-    showToast(ok?'✓ Review saved!':'❌ Could not save review — please try again');
+    showToast(ok===true?'✓ Review saved!':`❌ ${(ok&&ok.error)||'Could not save review — please try again'}`);
   };
   const videos=[...(game.videoUrl?[{url:game.videoUrl,label:'Game Highlights'}]:[]),...reviews.filter(r=>r.videoUrl).map(r=>({url:r.videoUrl,label:`${r.user}'s clip`}))];
   const saveSeries=async({awaySeriesWins,homeSeriesWins,seriesType,isPlayoff})=>{
@@ -2194,7 +2194,8 @@ function App() {
       is_playoff:g.isPlayoff||false,
       created_by:uid
     },{onConflict:'id'});
-    if(error) console.error('ensureGameInDb error',error);
+    if(error){console.error('ensureGameInDb error',error);return {ok:false,error:error.message||error.code||String(error)};}
+    return {ok:true};
   };
 
   const dispatch = useCallback(async(action)=>{
@@ -2205,18 +2206,23 @@ function App() {
       case 'ADD_REVIEW': {
         const r=action.review, g=action.game;
         const uname = profile?.username || session?.user?.user_metadata?.username || `fan_${uid.slice(-4)}`;
-        if(g?.fromApi) await ensureGameInDb(g,uid);
+        if(g?.fromApi){const gr=await ensureGameInDb(g,uid);if(gr&&!gr.ok)return {ok:false,error:`Game save failed: ${gr.error}`};}
         // Check for existing review first (avoids relying on a unique constraint)
-        const {data:existing} = await sb.from('reviews').select('id').eq('game_id',r.gameId).eq('user_id',uid).maybeSingle();
+        console.log('[ADD_REVIEW] gameId=',r.gameId,'uid=',uid,'uname=',uname,'gameFromApi=',g?.fromApi);
+        if(!r.gameId){console.error('[ADD_REVIEW] missing gameId');return {ok:false,error:'Missing game ID'};}
+        const {data:existing,error:selectErr} = await sb.from('reviews').select('id').eq('game_id',r.gameId).eq('user_id',uid).maybeSingle();
+        if(selectErr) console.warn('[ADD_REVIEW] select error',selectErr);
         let saveErr;
         if(existing?.id){
+          console.log('[ADD_REVIEW] updating existing review',existing.id);
           const {error} = await sb.from('reviews').update({username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]}).eq('id',existing.id);
           saveErr=error;
         } else {
+          console.log('[ADD_REVIEW] inserting new review');
           const {error} = await sb.from('reviews').insert({game_id:r.gameId,user_id:uid,username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]});
           saveErr=error;
         }
-        if(saveErr){console.error('review save error',saveErr);return false;}
+        if(saveErr){console.error('[ADD_REVIEW] save error',saveErr);return {ok:false,error:saveErr.message||saveErr.code||String(saveErr)};}
         // Re-fetch user's reviews from DB so state always reflects reality
         const {data:fresh} = await sb.from('reviews').select('*').eq('user_id',uid).order('created_at',{ascending:false});
         if(fresh) setReviews(prev=>{const others=prev.filter(x=>x.userId!==uid);return[...(fresh.map(normalizeReview)),...others];});
