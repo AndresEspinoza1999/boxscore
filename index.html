@@ -1033,7 +1033,7 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
   const [showSeriesEditor,setShowSeriesEditor]=useState(false);
   const [reviewSort,setReviewSort]=useState('recent');
   const [showVidIdx,setShowVidIdx]=useState(null);
-  const game=state.games.find(g=>g.id===gameId);
+  const game=state.games.find(g=>g.id===gameId)||(state.apiGames||[]).find(g=>g.id===gameId);
   if(!game)return <div style={{padding:32,textAlign:'center',color:'var(--text3)'}}>Game not found</div>;
   const reviews=state.reviews.filter(r=>r.gameId===gameId);
   const avg=avgRating(reviews), inWL=state.watchlist.includes(gameId);
@@ -1041,8 +1041,8 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
   const color=getSportColor(game.sport), meta=getSportMeta(game.sport);
   const awayWins=game.awayScore>game.homeScore, homeWins=game.homeScore>game.awayScore;
   const toggleWL=()=>{dispatch({type:inWL?'REMOVE_WATCHLIST':'ADD_WATCHLIST',gameId});showToast(inWL?'Removed from saved':'✓ Saved');};
-  const submitReview=({rating,text,videoUrl})=>{
-    dispatch({type:'ADD_REVIEW',review:{id:'r_'+Date.now(),gameId,userId:state.currentUser.id,user:state.currentUser.name,rating,text,videoUrl,date:new Date().toISOString().split('T')[0]}});
+  const submitReview=({rating,text,videoUrl,players})=>{
+    dispatch({type:'ADD_REVIEW',game,review:{id:'r_'+Date.now(),gameId,userId:state.currentUser.id,user:state.currentUser.name,rating,text,videoUrl,players:players||[],date:new Date().toISOString().split('T')[0]}});
     setShowReview(false);showToast('✓ Review saved!');
   };
   const videos=[...(game.videoUrl?[{url:game.videoUrl,label:'Game Highlights'}]:[]),...reviews.filter(r=>r.videoUrl).map(r=>({url:r.videoUrl,label:`${r.user}'s clip`}))];
@@ -1511,14 +1511,25 @@ function App() {
     currentUser: { id: session?.user?.id||'', name: profile?.username||'' },
   }),[games,reviews,likes,watchlist,follows,session,profile]);
 
+  const ensureGameInDb = async(g, uid) => {
+    await sb.from('games').upsert({
+      id:g.id, sport:g.sport, league:g.league||g.sport,
+      home:g.home, away:g.away,
+      home_score:g.homeScore??null, away_score:g.awayScore??null,
+      date:g.date||'', venue:g.venue||'', description:g.description||'',
+      video_url:'', tags:g.tags||[], created_by:uid
+    },{onConflict:'id'});
+  };
+
   const dispatch = useCallback(async(action)=>{
     const uid = session?.user?.id;
     if(!uid) return;
     switch(action.type){
       case 'ADD_REVIEW': {
-        const r=action.review;
+        const r=action.review, g=action.game;
+        if(g?.fromApi) await ensureGameInDb(g,uid);
         const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:profile.username,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]},{onConflict:'game_id,user_id'}).select().single();
-        if(!error&&data) setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);
+        if(!error&&data){setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);if(g?.fromApi)setGames(prev=>prev.find(x=>x.id===g.id)?prev:[...prev,g]);}
         break;
       }
       case 'DELETE_REVIEW': {
@@ -1532,7 +1543,7 @@ function App() {
         else { const like={review_id:action.reviewId,user_id:uid}; await sb.from('likes').insert(like); setLikes(prev=>[...prev,like]); }
         break;
       }
-      case 'ADD_WATCHLIST': { await sb.from('watchlist').insert({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>[...prev,action.gameId]); break; }
+      case 'ADD_WATCHLIST': { const wg=(state.apiGames||[]).find(g=>g.id===action.gameId); if(wg?.fromApi)await ensureGameInDb(wg,uid); await sb.from('watchlist').insert({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>[...prev,action.gameId]); break; }
       case 'REMOVE_WATCHLIST': { await sb.from('watchlist').delete().match({game_id:action.gameId,user_id:uid}); setWatchlist(prev=>prev.filter(id=>id!==action.gameId)); break; }
       case 'FOLLOW': { await sb.from('follows').insert({follower_id:uid,following_id:action.userId}); setFollows(prev=>[...prev,{follower_id:uid,following_id:action.userId}]); break; }
       case 'UNFOLLOW': { await sb.from('follows').delete().match({follower_id:uid,following_id:action.userId}); setFollows(prev=>prev.filter(f=>!(f.follower_id===uid&&f.following_id===action.userId))); break; }
