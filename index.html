@@ -2206,9 +2206,21 @@ function App() {
         const r=action.review, g=action.game;
         const uname = profile?.username || session?.user?.user_metadata?.username || `fan_${uid.slice(-4)}`;
         if(g?.fromApi) await ensureGameInDb(g,uid);
-        const {data,error}=await sb.from('reviews').upsert({game_id:r.gameId,user_id:uid,username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]},{onConflict:'game_id,user_id'}).select().single();
-        if(error){console.error('review save error',error);return false;}
-        if(data){setReviews(prev=>[normalizeReview(data),...prev.filter(x=>!(x.gameId===r.gameId&&x.userId===uid))]);if(g?.fromApi)setGames(prev=>prev.find(x=>x.id===g.id)?prev:[...prev,g]);}
+        // Check for existing review first (avoids relying on a unique constraint)
+        const {data:existing} = await sb.from('reviews').select('id').eq('game_id',r.gameId).eq('user_id',uid).maybeSingle();
+        let saveErr;
+        if(existing?.id){
+          const {error} = await sb.from('reviews').update({username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]}).eq('id',existing.id);
+          saveErr=error;
+        } else {
+          const {error} = await sb.from('reviews').insert({game_id:r.gameId,user_id:uid,username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]});
+          saveErr=error;
+        }
+        if(saveErr){console.error('review save error',saveErr);return false;}
+        // Re-fetch user's reviews from DB so state always reflects reality
+        const {data:fresh} = await sb.from('reviews').select('*').eq('user_id',uid).order('created_at',{ascending:false});
+        if(fresh) setReviews(prev=>{const others=prev.filter(x=>x.userId!==uid);return[...(fresh.map(normalizeReview)),...others];});
+        if(g?.fromApi) setGames(prev=>prev.find(x=>x.id===g.id)?prev:[...prev,g]);
         return true;
       }
       case 'DELETE_REVIEW': {
