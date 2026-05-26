@@ -57,10 +57,47 @@
     }
     #root{
       height:100%;
-      /* Cap width so it stays phone-shaped on large screens */
       max-width:430px;
       margin:0 auto;
       position:relative;
+    }
+    /* ── DESKTOP WRAPPER ── */
+    /* On screens wider than 500px, give the body a gradient bg and
+       float the app as a centered phone-shaped card */
+    @media (min-width:500px){
+      html,body{ height:100%; }
+      body{
+        background:linear-gradient(135deg,#0d0d14 0%,#12121e 50%,#0d0d14 100%);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:24px 0;
+      }
+      #root{
+        height:min(900px,calc(100vh - 48px));
+        border-radius:44px;
+        overflow:hidden;
+        box-shadow:
+          0 0 0 1px rgba(255,255,255,0.08),
+          0 32px 80px rgba(0,0,0,0.7),
+          0 0 0 8px #1a1a24,
+          0 0 0 9px rgba(255,255,255,0.05);
+        /* subtle notch bar at top */
+        position:relative;
+      }
+      /* faux notch / Dynamic Island pill on desktop */
+      #root::before{
+        content:'';
+        position:absolute;
+        top:12px;left:50%;transform:translateX(-50%);
+        width:120px;height:32px;
+        background:#000;border-radius:20px;
+        z-index:1000;pointer-events:none;
+      }
+      .app-root{
+        border-radius:44px;
+        overflow:hidden;
+      }
     }
     input,textarea,button,select{font-family:inherit;font-size:15px;outline:none;}
     input,textarea,select{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:11px 14px;width:100%;transition:border 0.15s;}
