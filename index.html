@@ -624,6 +624,7 @@ const normalizeReview = r => ({
 const normalizeNotif = n => ({id:n.id,type:n.type,fromUserId:n.from_user_id,fromUsername:n.from_username||'',gameId:n.game_id,reviewId:n.review_id,read:n.read,date:n.created_at});
 const normalizeList = l => ({id:l.id,userId:l.user_id,username:l.username||'',name:l.name,description:l.description||'',isPublic:l.is_public!==false,createdAt:l.created_at});
 const normalizeListItem = li => ({id:li.id,listId:li.list_id,gameId:li.game_id,position:li.position||0});
+const normalizeRequest = r => ({id:r.id,fromUserId:r.from_user_id,toUserId:r.to_user_id,fromUsername:r.from_username||'',toUsername:r.to_username||'',status:r.status||'pending',date:r.created_at});
 
 /* ── ESPN API ── */
 const SPORT_PARENT = {nba:'nba',nfl:'nfl',mlb:'mlb',nhl:'nhl',mls:'soccer',epl:'soccer',laliga:'soccer',ucl:'soccer',seriea:'soccer',bundesliga:'soccer',ligue1:'soccer'};
@@ -1032,17 +1033,39 @@ function ActivityFeed({ state, navigate }) {
 }
 
 /* ── NOTIFICATIONS SHEET ── */
-function NotificationsSheet({ notifications, games, apiGames, onClose, onMarkRead, navigate }) {
+function NotificationsSheet({ notifications, games, apiGames, onClose, onMarkRead, navigate, dispatch, showToast, friendRequests }) {
   const allGames = useMemo(()=>[...(apiGames||[]),...games],[apiGames,games]);
   useEffect(()=>{ if(notifications.some(n=>!n.read)) onMarkRead(); },[]);
   const relTime = d => { if(!d)return''; const s=Math.floor((Date.now()-new Date(d))/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; };
-  const icon = t => t==='like'?'❤️':t==='follow'?'👤':'🔔';
+  const icon = t => t==='like'?'❤️':t==='follow'?'👤':t==='friend_request'?'🤝':t==='friend_accepted'?'🎉':'🔔';
   const text = n => {
     const g = n.gameId ? allGames.find(x=>x.id===n.gameId) : null;
     if(n.type==='like') return <span><b>{n.fromUsername}</b>{' liked your review'}{g?` of ${abbr(g.away)} vs ${abbr(g.home)}`:''}</span>;
     if(n.type==='follow') return <span><b>{n.fromUsername}</b>{' started following you'}</span>;
+    if(n.type==='friend_request') return <span><b>{n.fromUsername}</b>{' sent you a friend request'}</span>;
+    if(n.type==='friend_accepted') return <span><b>{n.fromUsername}</b>{' accepted your friend request 🎉'}</span>;
     return <span>{n.fromUsername}</span>;
   };
+
+  const FriendRequestActions = ({n}) => {
+    const req = (friendRequests||[]).find(r=>r.fromUserId===n.fromUserId&&r.status==='pending');
+    if(!req) return null;
+    const [busy,setBusy]=useState(false);
+    const handle=async(type)=>{
+      setBusy(true);
+      const res=await dispatch({type,requestId:req.id});
+      setBusy(false);
+      if(type==='ACCEPT_FRIEND_REQUEST') showToast('🎉 Friends with '+n.fromUsername+'!');
+      else showToast('Request declined');
+    };
+    return(
+      <div style={{display:'flex',gap:6,marginTop:8}}>
+        <button className="btn btn-primary btn-sm" disabled={busy} style={{flex:1,padding:'6px 0',fontSize:12}} onClick={e=>{e.stopPropagation();handle('ACCEPT_FRIEND_REQUEST');}}>Accept</button>
+        <button className="btn btn-ghost btn-sm" disabled={busy} style={{flex:1,padding:'6px 0',fontSize:12}} onClick={e=>{e.stopPropagation();handle('DECLINE_FRIEND_REQUEST');}}>Decline</button>
+      </div>
+    );
+  };
+
   return (
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="sheet" style={{maxHeight:'75vh',display:'flex',flexDirection:'column'}}>
@@ -1052,14 +1075,17 @@ function NotificationsSheet({ notifications, games, apiGames, onClose, onMarkRea
           ?<div className="empty"><div className="empty-icon">🔔</div><p>No notifications yet</p></div>
           :<div style={{overflowY:'auto',flex:1}}>
             {notifications.map(n=>(
-              <div key={n.id} style={{display:'flex',gap:12,padding:'12px 0',borderBottom:'1px solid var(--border)',cursor:n.gameId||n.fromUserId?'pointer':'default',background:n.read?'transparent':'color-mix(in srgb,var(--accent) 6%,transparent)',borderRadius:8}}
-                onClick={()=>{if(n.gameId)navigate('game',{gameId:n.gameId});else if(n.fromUserId)navigate('public_profile',{userId:n.fromUserId,username:n.fromUsername});onClose();}}>
-                <div style={{fontSize:20,flexShrink:0,paddingTop:2}}>{icon(n.type)}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,color:'var(--text)',lineHeight:1.4}}>{text(n)}</div>
-                  <div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>{relTime(n.date)}</div>
+              <div key={n.id} style={{padding:'12px 0',borderBottom:'1px solid var(--border)',background:n.read?'transparent':'rgba(240,191,61,0.06)',borderRadius:8}}>
+                <div style={{display:'flex',gap:12,cursor:n.gameId||n.fromUserId?'pointer':'default'}}
+                  onClick={()=>{if(n.type==='friend_request')return;if(n.gameId)navigate('game',{gameId:n.gameId});else if(n.fromUserId)navigate('public_profile',{userId:n.fromUserId,username:n.fromUsername});onClose();}}>
+                  <div style={{fontSize:20,flexShrink:0,paddingTop:2}}>{icon(n.type)}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,color:'var(--text)',lineHeight:1.4}}>{text(n)}</div>
+                    <div style={{fontSize:11,color:'var(--text3)',marginTop:3}}>{relTime(n.date)}</div>
+                    {n.type==='friend_request'&&<FriendRequestActions n={n}/>}
+                  </div>
+                  {!n.read&&<div style={{width:7,height:7,borderRadius:'50%',background:'var(--accent)',flexShrink:0,marginTop:5}}/>}
                 </div>
-                {!n.read&&<div style={{width:7,height:7,borderRadius:'50%',background:'var(--accent)',flexShrink:0,marginTop:5}}/>}
               </div>
             ))}
           </div>}
@@ -1069,7 +1095,7 @@ function NotificationsSheet({ notifications, games, apiGames, onClose, onMarkRea
 }
 
 /* ── HOME PAGE ── */
-function HomePage({ state, navigate, onRefresh, notifications, onMarkNotifsRead }) {
+function HomePage({ state, navigate, onRefresh, notifications, onMarkNotifsRead, dispatch, showToast }) {
   const [sport, setSport] = useState('all');
   const [showNotifs, setShowNotifs] = useState(false);
   const noop = useCallback(()=>{},[]);
@@ -1209,7 +1235,7 @@ function HomePage({ state, navigate, onRefresh, notifications, onMarkNotifsRead 
         ):filtered.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
       </div>
       {sport==='all'&&<ActivityFeed state={state} navigate={navigate}/>}
-      {showNotifs&&<NotificationsSheet notifications={notifications} games={state.games} apiGames={state.apiGames} onClose={()=>setShowNotifs(false)} onMarkRead={onMarkNotifsRead} navigate={navigate}/>}
+      {showNotifs&&<NotificationsSheet notifications={notifications} games={state.games} apiGames={state.apiGames} onClose={()=>setShowNotifs(false)} onMarkRead={onMarkNotifsRead} navigate={navigate} dispatch={dispatch} showToast={showToast} friendRequests={state.friendRequests}/>}
     </div>
   );
 }
@@ -1219,18 +1245,30 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
   const [profileData, setProfileData] = useState(null);
   const [userReviews, setUserReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [followModal, setFollowModal] = useState(null);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
   const isFollowing = (state.follows||[]).some(f=>f.following_id===userId);
   const isSelf = state.currentUser.id === userId;
-  const followersCount = (state.follows||[]).filter(f=>f.following_id===userId).length;
+
+  // Friend request state
+  const myRequests = state.friendRequests||[];
+  const outgoing = myRequests.find(r=>r.fromUserId===state.currentUser.id&&r.toUserId===userId);
+  const incoming = myRequests.find(r=>r.fromUserId===userId&&r.toUserId===state.currentUser.id);
+  const isFriends = myRequests.some(r=>((r.fromUserId===state.currentUser.id&&r.toUserId===userId)||(r.fromUserId===userId&&r.toUserId===state.currentUser.id))&&r.status==='accepted');
 
   useEffect(()=>{
     async function load() {
-      const [pR,rR] = await Promise.all([
+      const [pR,rR,folR,folByR] = await Promise.all([
         sb.from('profiles').select('*').eq('id',userId).single(),
         sb.from('reviews').select('*').eq('user_id',userId).order('created_at',{ascending:false}),
+        sb.from('follows').select('id',{count:'exact'}).eq('following_id',userId),
+        sb.from('follows').select('id',{count:'exact'}).eq('follower_id',userId),
       ]);
       setProfileData(pR.data);
       setUserReviews((rR.data||[]).map(normalizeReview));
+      setFollowersCount(folR.count||0);
+      setFollowingCount(folByR.count||0);
       setLoading(false);
     }
     load();
@@ -1238,6 +1276,23 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
 
   const displayName = profileData?.username || username || 'User';
   const avgR = userReviews.length ? (userReviews.reduce((a,b)=>a+b.rating,0)/userReviews.length).toFixed(1) : '—';
+
+  const FriendBtn = () => {
+    const [busy,setBusy]=useState(false);
+    if(isFriends) return <div style={{marginTop:8,fontSize:12,color:'var(--green)',fontWeight:700}}>✓ Friends</div>;
+    if(incoming&&incoming.status==='pending') return(
+      <div style={{display:'flex',gap:6,marginTop:8}}>
+        <button className="btn btn-primary btn-sm" disabled={busy} style={{fontSize:12}} onClick={async()=>{setBusy(true);const r=await dispatch({type:'ACCEPT_FRIEND_REQUEST',requestId:incoming.id});setBusy(false);showToast(r?.ok?'🎉 Friends with '+displayName+'!':'Error');}}>Accept Request</button>
+        <button className="btn btn-ghost btn-sm" disabled={busy} style={{fontSize:12}} onClick={async()=>{setBusy(true);await dispatch({type:'DECLINE_FRIEND_REQUEST',requestId:incoming.id});setBusy(false);showToast('Declined');}}>Decline</button>
+      </div>
+    );
+    if(outgoing&&outgoing.status==='pending') return(
+      <button className="btn btn-ghost btn-sm" disabled={busy} style={{marginTop:8,fontSize:12}} onClick={async()=>{setBusy(true);await dispatch({type:'CANCEL_FRIEND_REQUEST',requestId:outgoing.id});setBusy(false);showToast('Request cancelled');}}>⏳ Request Sent — Cancel</button>
+    );
+    return(
+      <button className="btn btn-ghost btn-sm" disabled={busy} style={{marginTop:8,fontSize:12}} onClick={async()=>{setBusy(true);const r=await dispatch({type:'SEND_FRIEND_REQUEST',userId,username:displayName});setBusy(false);showToast(r?.ok?'Friend request sent!':'Error: '+(r?.error||''));}}>🤝 Add Friend</button>
+    );
+  };
 
   if(loading) return <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><div className="spinner"/></div>;
 
@@ -1251,17 +1306,22 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
         <div className="profile-name">{displayName}</div>
         {profileData?.bio&&<div style={{fontSize:13,color:'var(--text2)',textAlign:'center',margin:'4px 16px 0',lineHeight:1.4}}>{profileData.bio}</div>}
         {!isSelf&&(
-          <button className={"btn btn-sm " + (isFollowing?'btn-ghost':'btn-primary')} style={{margin:'12px auto 0',display:'flex'}}
-            onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId});showToast(isFollowing?'Unfollowed':'Following '+displayName+'!');}}>
-            {isFollowing?'Following ✓':'+ Follow'}
-          </button>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,marginTop:12}}>
+            <button className={"btn btn-sm " + (isFollowing?'btn-ghost':'btn-primary')}
+              onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId,username:displayName});showToast(isFollowing?'Unfollowed':'Following '+displayName+'!');}}>
+              {isFollowing?'Following ✓':'+ Follow'}
+            </button>
+            <FriendBtn/>
+          </div>
         )}
         <div className="profile-stats" style={{marginTop:14}}>
           <div><div className="stat-num">{userReviews.length}</div><div className="stat-lbl">Reviews</div></div>
-          <div><div className="stat-num">{followersCount}</div><div className="stat-lbl">Followers</div></div>
+          <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('followers')}><div className="stat-num" style={{color:'var(--accent)'}}>{followersCount}</div><div className="stat-lbl">Followers</div></div>
+          <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('following')}><div className="stat-num" style={{color:'var(--accent)'}}>{followingCount}</div><div className="stat-lbl">Following</div></div>
           <div><div className="stat-num">{avgR}</div><div className="stat-lbl">Avg ★</div></div>
         </div>
       </div>
+      {followModal&&<FollowListModal type={followModal} userId={userId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onClose={()=>setFollowModal(null)}/>}
       <div style={{height:1,background:'var(--border)'}}/>
       <div style={{padding:'16px'}} className="gap-stack">
         {userReviews.length===0
@@ -1783,6 +1843,61 @@ function UserRow({ user, state, dispatch, navigate, showToast }) {
 }
 
 /* ── FRIENDS PAGE ── */
+/* ── FOLLOW LIST MODAL (followers / following) ── */
+function FollowListModal({ type, userId, state, dispatch, navigate, showToast, onClose }) {
+  const [users, setUsers] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(()=>{
+    async function load(){
+      let ids=[];
+      if(type==='following'){
+        const {data}=await sb.from('follows').select('following_id').eq('follower_id',userId);
+        ids=(data||[]).map(f=>f.following_id);
+      } else {
+        const {data}=await sb.from('follows').select('follower_id').eq('following_id',userId);
+        ids=(data||[]).map(f=>f.follower_id);
+      }
+      if(ids.length){
+        const {data:profiles}=await sb.from('profiles').select('id,username,avatar_url').in('id',ids);
+        setUsers(profiles||[]);
+      } else setUsers([]);
+      setLoading(false);
+    }
+    load();
+  },[userId,type]);
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet" style={{maxHeight:'75vh',display:'flex',flexDirection:'column'}}>
+        <div className="sheet-handle"/>
+        <div style={{fontSize:17,fontWeight:800,marginBottom:12,flexShrink:0}}>{type==='following'?'Following':'Followers'}</div>
+        {loading?<div className="spinner" style={{margin:'20px auto'}}/>
+          :!users?.length?<div className="empty"><p>{type==='following'?'Not following anyone yet':'No followers yet'}</p></div>
+          :<div style={{overflowY:'auto',flex:1}}>
+            {users.map(u=>{
+              const isMe=u.id===state.currentUser.id;
+              const isFollowing=(state.follows||[]).some(f=>f.follower_id===state.currentUser.id&&f.following_id===u.id);
+              return(
+                <div key={u.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                  <div style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,flex:1,minWidth:0}}
+                    onClick={()=>{if(isMe)return;navigate('public_profile',{userId:u.id,username:u.username});onClose();}}>
+                    <AvatarImg name={u.username} url={u.avatar_url} size={40}/>
+                    <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.username}</div>
+                  </div>
+                  {!isMe&&(
+                    <button className={`btn btn-sm ${isFollowing?'btn-ghost':'btn-primary'}`} style={{flexShrink:0,padding:'6px 14px',fontSize:12}}
+                      onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId:u.id,username:u.username});showToast(isFollowing?'Unfollowed':'Following '+u.username+'!');}}>
+                      {isFollowing?'Following ✓':'+ Follow'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>}
+      </div>
+    </div>
+  );
+}
+
 function FriendsPage({ state, dispatch, navigate, showToast }) {
   const [tab, setTab]               = useState('activity');
   const [query, setQuery]           = useState('');
@@ -1834,12 +1949,20 @@ function FriendsPage({ state, dispatch, navigate, showToast }) {
   const ac = n => colors[(n||'').charCodeAt(0)%colors.length];
   const relTime = d => { if(!d)return''; const s=Math.floor((Date.now()-new Date(d))/1000); if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; };
 
+  // Pending incoming friend requests
+  const pendingRequests = useMemo(()=>
+    (state.friendRequests||[]).filter(r=>r.toUserId===state.currentUser.id&&r.status==='pending')
+  ,[state.friendRequests,state.currentUser.id]);
+
   return (
     <div className="page">
       <div style={{padding:'16px 16px 0',fontSize:22,fontWeight:900}}>Friends</div>
       <div className="tab-bar" style={{margin:'10px 16px 0',borderBottom:'1px solid var(--border)',paddingBottom:0}}>
-        {[['activity','Activity'],['people','People']].map(([id,lbl])=>(
-          <div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>
+        {[['activity','Activity'],['people','People'],['requests','Requests']].map(([id,lbl])=>(
+          <div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)} style={{position:'relative'}}>
+            {lbl}
+            {id==='requests'&&pendingRequests.length>0&&<span style={{position:'absolute',top:6,right:4,width:16,height:16,borderRadius:8,background:'var(--accent)',color:'#000',fontSize:9,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center'}}>{pendingRequests.length}</span>}
+          </div>
         ))}
       </div>
 
@@ -1923,6 +2046,65 @@ function FriendsPage({ state, dispatch, navigate, showToast }) {
           )}
         </div>
       )}
+
+      {/* ── REQUESTS TAB ── */}
+      {tab==='requests'&&(
+        <div className="page-scroll" style={{padding:'16px 16px 24px'}}>
+          {pendingRequests.length===0?(
+            <div className="empty" style={{paddingTop:48}}>
+              <div className="empty-icon">🤝</div>
+              <p>No pending friend requests</p>
+            </div>
+          ):pendingRequests.map(req=>{
+            const [busy,setBusy]=useState(false);
+            const handle=async(type)=>{setBusy(true);await dispatch({type,requestId:req.id});setBusy(false);showToast(type==='ACCEPT_FRIEND_REQUEST'?`🎉 Friends with ${req.fromUsername}!`:'Request declined');};
+            return(
+              <div key={req.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
+                <div style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,flex:1,minWidth:0}}
+                  onClick={()=>navigate('public_profile',{userId:req.fromUserId,username:req.fromUsername})}>
+                  <div className="activity-avatar" style={{background:ac(req.fromUsername)+'22',color:ac(req.fromUsername),flexShrink:0,width:44,height:44,fontSize:16}}>
+                    {(req.fromUsername||'?')[0].toUpperCase()}
+                  </div>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{req.fromUsername}</div>
+                    <div style={{fontSize:11,color:'var(--text3)'}}>Wants to be friends</div>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:6,flexShrink:0}}>
+                  <button className="btn btn-primary btn-sm" disabled={busy} style={{padding:'6px 12px',fontSize:12}} onClick={()=>handle('ACCEPT_FRIEND_REQUEST')}>Accept</button>
+                  <button className="btn btn-ghost btn-sm" disabled={busy} style={{padding:'6px 10px',fontSize:12}} onClick={()=>handle('DECLINE_FRIEND_REQUEST')}>✕</button>
+                </div>
+              </div>
+            );
+          })}
+          {/* Sent requests */}
+          {(()=>{
+            const sent=(state.friendRequests||[]).filter(r=>r.fromUserId===state.currentUser.id&&r.status==='pending');
+            if(!sent.length)return null;
+            return(
+              <div style={{marginTop:24}}>
+                <div className="t-micro" style={{marginBottom:8}}>Sent Requests · {sent.length}</div>
+                {sent.map(req=>(
+                  <div key={req.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
+                    <div style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,flex:1,minWidth:0}}
+                      onClick={()=>navigate('public_profile',{userId:req.toUserId,username:req.toUsername})}>
+                      <div className="activity-avatar" style={{background:ac(req.toUsername)+'22',color:ac(req.toUsername),flexShrink:0,width:40,height:40,fontSize:15}}>
+                        {(req.toUsername||'?')[0].toUpperCase()}
+                      </div>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14}}>{req.toUsername}</div>
+                        <div style={{fontSize:11,color:'var(--text3)'}}>Request pending…</div>
+                      </div>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" style={{fontSize:11,padding:'5px 10px',flexShrink:0}}
+                      onClick={()=>{dispatch({type:'CANCEL_FRIEND_REQUEST',requestId:req.id});showToast('Request cancelled');}}>Cancel</button>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
@@ -1935,6 +2117,7 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   const [bioVal, setBioVal] = useState(state.profile?.bio||'');
   const [avatarVal, setAvatarVal] = useState(state.profile?.avatar_url||'');
   const [showCreateList,setShowCreateList]=useState(false);
+  const [followModal,setFollowModal]=useState(null); // 'followers' | 'following'
   const myReviews=state.reviews.filter(r=>r.userId===state.currentUser.id);
   const allGames=[...state.games,...(state.apiGames||[])].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i);
   const watchGames=allGames.filter(g=>state.watchlist.includes(g.id));
@@ -1971,12 +2154,13 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
         )}
         <div className="profile-stats" style={{marginTop:14}}>
           <div><div className="stat-num">{myReviews.length}</div><div className="stat-lbl">Reviews</div></div>
-          <div><div className="stat-num">{followingCount}</div><div className="stat-lbl">Following</div></div>
-          <div><div className="stat-num">{watchGames.length}</div><div className="stat-lbl">Saved</div></div>
+          <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('followers')}><div className="stat-num" style={{color:'var(--accent)'}}>{(state.follows||[]).filter(f=>f.following_id===state.currentUser.id).length || '—'}</div><div className="stat-lbl">Followers</div></div>
+          <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('following')}><div className="stat-num" style={{color:'var(--accent)'}}>{followingCount}</div><div className="stat-lbl">Following</div></div>
           <div><div className="stat-num">{avgMine}</div><div className="stat-lbl">Avg ★</div></div>
         </div>
         <button className="btn btn-ghost btn-sm" style={{margin:'8px auto 16px',display:'flex'}} onClick={onSignOut}>Sign Out</button>
       </div>
+      {followModal&&<FollowListModal type={followModal} userId={state.currentUser.id} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onClose={()=>setFollowModal(null)}/>}
       <div className="tab-bar">{[['reviews',`Reviews (${myReviews.length})`],['saved',`Saved (${watchGames.length})`],['lists',`Lists (${myLists.length})`]].map(([id,lbl])=><div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>)}</div>
       <div style={{padding:'16px'}} className="gap-stack">
         {tab==='reviews'?myReviews.length===0?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet — go rate a game!</p></div>:myReviews.map(r=>{const g=allGames.find(x=>x.id===r.gameId);return(<div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:r.gameId})}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}><div style={{fontSize:13,fontWeight:800}}>{g?`${abbr(g.away)} vs ${abbr(g.home)}`:'Game Review'}</div>{g&&<span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>}</div><Stars rating={r.rating} size={13}/>{r.text?<p className="review-body" style={{marginTop:8}}>{r.text}</p>:null}<div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div></div>);})
@@ -2605,8 +2789,9 @@ function App() {
   const [follows,   setFollows]   = useState([]);
   const [blocks,    setBlocks]    = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [lists,     setLists]     = useState([]);
-  const [listItems, setListItems] = useState([]);
+  const [lists,          setLists]          = useState([]);
+  const [listItems,      setListItems]      = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
   const [loading,  setLoading]   = useState(true);
   const [apiGames, setApiGames]  = useState([]);
   const [apiLoading, setApiLoading] = useState(false);
@@ -2706,6 +2891,11 @@ function App() {
         const {data:itemsData} = await sb.from('list_items').select('*').in('list_id',myLists.map(l=>l.id));
         setListItems((itemsData||[]).map(normalizeListItem));
       }
+      // Load friend requests (sent and received)
+      const {data:frData} = await sb.from('friend_requests').select('*')
+        .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+        .order('created_at',{ascending:false});
+      setFriendRequests((frData||[]).map(normalizeRequest));
     } catch(e){ console.error('loadData error',e); }
     setLoading(false);
   },[]);
@@ -2728,9 +2918,10 @@ function App() {
     notifications,
     lists,
     listItems,
+    friendRequests,
     profile,
     currentUser: { id: session?.user?.id||'', name: profile?.username||'' },
-  }),[games,reviews,likes,watchlist,follows,blocks,notifications,lists,listItems,session,profile]);
+  }),[games,reviews,likes,watchlist,follows,blocks,notifications,lists,listItems,friendRequests,session,profile]);
 
   const ensureGameInDb = async(g, uid) => {
     // Only columns that actually exist in the games table schema
@@ -2855,6 +3046,49 @@ function App() {
         }
         break;
       }
+      case 'SEND_FRIEND_REQUEST': {
+        const toId=action.userId, toUname=action.username||'';
+        const myUname=profile?.username||`fan_${uid.slice(-4)}`;
+        // Check no existing request
+        const existing=(friendRequests||[]).find(r=>(r.fromUserId===uid&&r.toUserId===toId)||(r.fromUserId===toId&&r.toUserId===uid));
+        if(existing) return {ok:false,error:'Request already exists'};
+        const {data,error}=await sb.from('friend_requests').insert({from_user_id:uid,to_user_id:toId,from_username:myUname,to_username:toUname,status:'pending'}).select().single();
+        if(error){console.error('SEND_FRIEND_REQUEST error',error);return {ok:false,error:error.message};}
+        setFriendRequests(prev=>[normalizeRequest(data),...prev]);
+        // Notify the recipient
+        await sb.from('notifications').insert({user_id:toId,type:'friend_request',from_user_id:uid,from_username:myUname,request_id:data.id});
+        return {ok:true};
+      }
+      case 'ACCEPT_FRIEND_REQUEST': {
+        const reqId=action.requestId;
+        const req=(friendRequests||[]).find(r=>r.id===reqId);
+        if(!req) return {ok:false};
+        const {error}=await sb.from('friend_requests').update({status:'accepted'}).eq('id',reqId);
+        if(error) return {ok:false,error:error.message};
+        setFriendRequests(prev=>prev.map(r=>r.id===reqId?{...r,status:'accepted'}:r));
+        // Mutual follow
+        const myUname=profile?.username||`fan_${uid.slice(-4)}`;
+        await Promise.all([
+          sb.from('follows').upsert({follower_id:uid,following_id:req.fromUserId},{onConflict:'follower_id,following_id'}),
+          sb.from('follows').upsert({follower_id:req.fromUserId,following_id:uid},{onConflict:'follower_id,following_id'}),
+        ]);
+        setFollows(prev=>{const already=prev.some(f=>f.follower_id===uid&&f.following_id===req.fromUserId);return already?prev:[...prev,{follower_id:uid,following_id:req.fromUserId,following_username:req.fromUsername}];});
+        // Notify the requester
+        await sb.from('notifications').insert({user_id:req.fromUserId,type:'friend_accepted',from_user_id:uid,from_username:myUname});
+        return {ok:true};
+      }
+      case 'DECLINE_FRIEND_REQUEST': {
+        const reqId=action.requestId;
+        await sb.from('friend_requests').delete().eq('id',reqId);
+        setFriendRequests(prev=>prev.filter(r=>r.id!==reqId));
+        return {ok:true};
+      }
+      case 'CANCEL_FRIEND_REQUEST': {
+        const reqId=action.requestId;
+        await sb.from('friend_requests').delete().eq('id',reqId).eq('from_user_id',uid);
+        setFriendRequests(prev=>prev.filter(r=>r.id!==reqId));
+        return {ok:true};
+      }
       case 'MARK_NOTIFS_READ': {
         await sb.from('notifications').update({read:true}).eq('user_id',uid).eq('read',false);
         setNotifications(prev=>prev.map(n=>({...n,read:true})));
@@ -2926,7 +3160,7 @@ function App() {
       <div style={{flexShrink:0,background:'var(--bg)',height:'20px',height:'max(20px,env(safe-area-inset-top,0px))'}}/>
       <PullToRefresh>
         <div style={{flex:1,overflow:'hidden',height:'100%'}}>
-          {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]}/>}
+          {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]} dispatch={dispatch} showToast={showToast}/>}
           {route.page==='search'      &&<SearchPage      state={state} navigate={navigate}/>}
           {route.page==='leaderboard' &&<LeaderboardPage state={state} navigate={navigate}/>}
           {route.page==='friends'     &&<FriendsPage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
