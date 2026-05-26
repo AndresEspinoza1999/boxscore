@@ -31,11 +31,11 @@
       --border:rgba(255,255,255,0.07);
       --text:#f0f0f5;--text2:#9898a8;--text3:#55555f;
       --accent:#f0bf3d;--red:#ff453a;--green:#30d158;--blue:#0a84ff;
-      /* Safe-area shorthands */
-      --sat:env(safe-area-inset-top);
-      --sar:env(safe-area-inset-right);
-      --sab:env(safe-area-inset-bottom);
-      --sal:env(safe-area-inset-left);
+      /* Safe-area shorthands (with 0px fallback for non-supporting browsers) */
+      --sat:env(safe-area-inset-top,0px);
+      --sar:env(safe-area-inset-right,0px);
+      --sab:env(safe-area-inset-bottom,0px);
+      --sal:env(safe-area-inset-left,0px);
     }
 
     /* ── RESET & BASE ── */
@@ -78,15 +78,16 @@
     .btn-full{width:100%;}
 
     /* ── BOTTOM NAV ── */
-    /* Use env() directly — var(--sab) can fail to resolve in Safari */
+    /* env() used directly with 0px fallback for browsers that don't support env() */
     .nav{
       display:flex;
       background:var(--s1);
       border-top:1px solid var(--border);
       padding-top:8px;
-      padding-bottom:max(20px,env(safe-area-inset-bottom));
-      padding-left:env(safe-area-inset-left);
-      padding-right:env(safe-area-inset-right);
+      padding-bottom:20px; /* base fallback */
+      padding-bottom:max(20px,env(safe-area-inset-bottom,0px));
+      padding-left:env(safe-area-inset-left,0px);
+      padding-right:env(safe-area-inset-right,0px);
       flex-shrink:0;
     }
     .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;}
@@ -140,12 +141,14 @@
     .sport-scroll{display:flex;gap:7px;overflow-x:auto;padding:10px 16px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
     .sport-scroll::-webkit-scrollbar{display:none;}
     .s-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--text3);border:1.5px solid var(--border);transition:all 0.15s;flex-shrink:0;}
-    .s-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));}
+    .s-pill.active{background:rgba(240,191,61,0.15);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));} /* fallback */
+    .s-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);}
     .s-dot{width:7px;height:7px;border-radius:50%;background:var(--sport-c,var(--accent));flex-shrink:0;}
 
     /* ── SPORT COLORS & BADGES ── */
     .sc-all{--sport-c:#f0bf3d;} .sc-nba{--sport-c:#ff6b35;} .sc-nfl{--sport-c:#4895ef;} .sc-mlb{--sport-c:#e5383b;} .sc-nhl{--sport-c:#00c3ff;} .sc-soccer{--sport-c:#47d98e;} .sc-epl{--sport-c:#7b2fbe;} .sc-laliga{--sport-c:#ee8707;} .sc-ucl{--sport-c:#3d6fd4;} .sc-seriea{--sport-c:#00529a;} .sc-bundesliga{--sport-c:#d3010c;} .sc-ligue1{--sport-c:#dba111;} .sc-mls{--sport-c:#002f6c;}
-    .sport-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);color:var(--sport-c,var(--accent));}
+    .sport-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(240,191,61,0.15);color:var(--sport-c,var(--accent));} /* fallback */
+    .sport-badge{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);}
 
     /* ── HORIZONTAL STRIP ── */
     .h-strip{display:flex;gap:10px;overflow-x:auto;padding:0 16px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
@@ -246,7 +249,8 @@
 
     /* ── SEARCH FILTERS ── */
     .f-pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--text3);border:1.5px solid var(--border);transition:all 0.15s;flex-shrink:0;}
-    .f-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 18%,transparent);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));}
+    .f-pill.active{background:rgba(240,191,61,0.18);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));} /* fallback */
+    .f-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 18%,transparent);}
     .team-ac-wrap{position:relative;}
     .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--s2);border:1px solid var(--border);border-radius:12px;z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
     .ac-hdr{font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3);padding:8px 12px 4px;}
@@ -258,11 +262,17 @@
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:flex;align-items:flex-end;}
     .sheet{
       background:var(--s1);border-radius:24px 24px 0 0;
-      padding:16px 16px max(32px,var(--sab));
-      width:100%;max-height:92dvh;overflow-y:auto;
-      /* prevent sheet from going into left/right safe areas on landscape */
-      padding-left:max(16px,var(--sal));
-      padding-right:max(16px,var(--sar));
+      width:100%;
+      max-height:92vh; /* fallback */
+      max-height:92dvh;
+      overflow-y:auto;
+      padding-top:16px;
+      padding-bottom:32px; /* base fallback */
+      padding-bottom:max(32px,env(safe-area-inset-bottom,0px));
+      padding-left:16px; /* base fallback */
+      padding-left:max(16px,env(safe-area-inset-left,0px));
+      padding-right:16px; /* base fallback */
+      padding-right:max(16px,env(safe-area-inset-right,0px));
     }
     .sheet-handle{width:36px;height:4px;background:var(--s3);border-radius:2px;margin:0 auto 16px;}
 
@@ -270,7 +280,8 @@
     /* sits above the nav bar + home indicator */
     .toast{
       position:fixed;
-      bottom:calc(max(56px,env(safe-area-inset-bottom)) + 52px);
+      bottom:calc(56px + 52px); /* base fallback */
+      bottom:calc(max(56px,env(safe-area-inset-bottom,0px)) + 52px);
       left:50%;transform:translateX(-50%);
       background:var(--s3);border:1px solid var(--border);
       color:var(--text);padding:10px 20px;border-radius:24px;
@@ -326,9 +337,13 @@
 
     /* ── ONBOARDING ── */
     .onboard-wrap{
-      min-height:100dvh;display:flex;flex-direction:column;
+      min-height:100vh; /* fallback */
+      min-height:100dvh;
+      display:flex;flex-direction:column;
       align-items:center;justify-content:center;
-      padding:32px 24px max(32px,var(--sab));
+      padding-top:32px;padding-left:24px;padding-right:24px;
+      padding-bottom:32px; /* base fallback */
+      padding-bottom:max(32px,env(safe-area-inset-bottom,0px));
       background:var(--bg);
     }
     .onboard-logo{display:flex;align-items:center;justify-content:center;gap:10px;font-size:36px;font-weight:900;letter-spacing:-0.5px;margin-bottom:4px;}
@@ -337,13 +352,31 @@
     .onboard-q{font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px;}
     .onboard-hint{font-size:14px;color:var(--text3);margin-bottom:24px;}
 
+    /* ── APP ROOT CONTAINERS (dvh with vh fallback) ── */
+    .app-root{
+      height:100vh; /* fallback for browsers without dvh support */
+      height:100dvh;
+      display:flex;flex-direction:column;overflow:hidden;
+    }
+    .auth-screen{
+      height:100vh;
+      height:100dvh;
+      display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      background:#000;gap:20px;
+      padding-top:env(safe-area-inset-top,0px);
+      padding-bottom:env(safe-area-inset-bottom,0px);
+    }
+
     /* ── MISC ── */
     .tag-chip{background:var(--s3);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text3);}
     .wl-btn{background:var(--s3);border:1.5px solid var(--border);color:var(--text2);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
-    .wl-btn.saved{background:color-mix(in srgb,var(--accent) 15%,transparent);border-color:var(--accent);color:var(--accent);}
+    .wl-btn.saved{background:rgba(240,191,61,0.15);border-color:var(--accent);color:var(--accent);} /* fallback */
+    .wl-btn.saved{background:color-mix(in srgb,var(--accent) 15%,transparent);}
     .t-micro{font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3);}
     .sport-tile{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:12px;cursor:pointer;background:var(--s3);border:1.5px solid var(--border);gap:4px;transition:all 0.15s;}
-    .sport-tile.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);border-color:var(--sport-c,var(--accent));}
+    .sport-tile.active{background:rgba(240,191,61,0.15);border-color:var(--sport-c,var(--accent));} /* fallback */
+    .sport-tile.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);}
     .t-em{font-size:20px;line-height:1;} .t-nm{font-size:10px;font-weight:700;color:var(--text3);}
     .sport-tile.active .t-nm{color:var(--sport-c,var(--accent));}
     .api-game-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:background 0.12s;}
@@ -439,18 +472,18 @@
       .lb-teams{font-size:15px;}
     }
 
-    /* ── Landscape (any iPhone rotated) ── */
+    /* ── Landscape (any phone rotated) ── */
     @media (orientation:landscape) and (max-height:500px){
-      .nav{padding-top:4px;padding-bottom:max(4px,var(--sab));}
+      .nav{padding-top:4px;padding-bottom:4px;padding-bottom:max(4px,env(safe-area-inset-bottom,0px));}
       .nav-label{display:none;}
       .nav-item{padding:2px 0;}
-      .app-hd{padding-top:max(8px,calc(var(--sat)+2px));padding-bottom:4px;}
+      .app-hd{padding-top:8px;padding-top:max(8px,calc(env(safe-area-inset-top,0px) + 2px));padding-bottom:4px;}
       .hero-matchup{padding:12px 16px;}
       .hero-score{font-size:28px;}
       .detail-matchup{padding:12px 20px;}
       .detail-score{font-size:28px;}
-      .profile-hd{padding-top:max(12px,calc(var(--sat)+6px));}
-      .onboard-wrap{padding-top:max(16px,calc(var(--sat)+8px));justify-content:flex-start;overflow-y:auto;}
+      .profile-hd{padding-top:12px;padding-top:max(12px,calc(env(safe-area-inset-top,0px) + 6px));}
+      .onboard-wrap{padding-top:16px;padding-top:max(16px,calc(env(safe-area-inset-top,0px) + 8px));justify-content:flex-start;overflow-y:auto;}
     }
 
     /* ── High-resolution displays (Retina) ── */
@@ -2389,7 +2422,7 @@ function OnboardingFlow({ onDone }) {
       </div>
 
       {/* Footer */}
-      <div style={{flexShrink:0,padding:'0 24px',paddingBottom:'max(28px,env(safe-area-inset-bottom))'}}>
+      <div style={{flexShrink:0,padding:'0 24px',paddingBottom:'max(28px,env(safe-area-inset-bottom,0px))'}}>
 
         {/* Step dots */}
         <div style={{display:'flex',justifyContent:'center',alignItems:'center',gap:7,marginBottom:16}}>
@@ -2866,7 +2899,7 @@ function App() {
 
   /* Loading screen */
   if(loading) return (
-    <div style={{height:'100dvh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'#000',gap:20,paddingTop:'env(safe-area-inset-top)',paddingBottom:'env(safe-area-inset-bottom)'}}>
+    <div className="auth-screen">
       <BoxscoreLogo fontSize={32}/>
       <div className="spinner"/>
     </div>
@@ -2887,10 +2920,9 @@ function App() {
   const NAV=[{id:'home',label:'Home',Icon:IconHome},{id:'search',label:'Search',Icon:IconSearch},{id:'add',label:'',isAdd:true},{id:'friends',label:'Friends',Icon:IconPeople},{id:'profile',label:'Profile',Icon:IconPerson}];
 
   return (
-    <div style={{height:'100dvh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      {/* Status-bar spacer — sits above all content, prevents overlap with notch/Dynamic Island/status bar.
-          Uses env() for notch/DI phones; falls back to 20px (flat status bar) when env is 0. */}
-      <div style={{flexShrink:0,background:'var(--bg)',height:'max(20px,env(safe-area-inset-top))'}}/>
+    <div className="app-root">
+      {/* Status-bar spacer — prevents overlap with notch/Dynamic Island/status bar */}
+      <div style={{flexShrink:0,background:'var(--bg)',height:'20px',height:'max(20px,env(safe-area-inset-top,0px))'}}/>
       <PullToRefresh>
         <div style={{flex:1,overflow:'hidden',height:'100%'}}>
           {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]}/>}
