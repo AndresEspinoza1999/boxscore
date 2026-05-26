@@ -1838,32 +1838,77 @@ function LeaderboardPage({ state, navigate }) {
 /* ── USER ROW (Friends page) ── */
 function UserRow({ user, state, dispatch, navigate, showToast }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [frBusy, setFrBusy]    = useState(false);
   const isFollowing = (state.follows||[]).some(f=>f.following_id===user.id);
   const isBlocked   = (state.blocks||[]).some(b=>b.blocked_id===user.id);
   const isSelf      = state.currentUser.id === user.id;
   const colors = ['#ff6b35','#4895ef','#47d98e','#e5383b','#00c3ff','#f0bf3d'];
   const ac = n => colors[(n||'').charCodeAt(0)%colors.length];
+
+  // Friend request state
+  const reqs   = state.friendRequests||[];
+  const myId   = state.currentUser.id;
+  const outgoing = reqs.find(r=>r.fromUserId===myId&&r.toUserId===user.id);
+  const incoming = reqs.find(r=>r.fromUserId===user.id&&r.toUserId===myId);
+  const isFriends = reqs.some(r=>((r.fromUserId===myId&&r.toUserId===user.id)||(r.fromUserId===user.id&&r.toUserId===myId))&&r.status==='accepted');
+
+  const friendAction = async() => {
+    setFrBusy(true);
+    if(incoming?.status==='pending'){
+      await dispatch({type:'ACCEPT_FRIEND_REQUEST',requestId:incoming.id});
+      showToast('🎉 Friends with '+user.username+'!');
+    } else if(outgoing?.status==='pending'){
+      await dispatch({type:'CANCEL_FRIEND_REQUEST',requestId:outgoing.id});
+      showToast('Request cancelled');
+    } else if(!isFriends){
+      const r=await dispatch({type:'SEND_FRIEND_REQUEST',userId:user.id,username:user.username});
+      showToast(r?.ok?'Friend request sent!':'Already sent or error');
+    }
+    setFrBusy(false);
+  };
+
+  // Label + style for the friend button
+  const friendLabel = isFriends?'Friends ✓':incoming?.status==='pending'?'Accept 🤝':outgoing?.status==='pending'?'Pending…':'+ Friend';
+  const friendStyle = isFriends?'btn-ghost':incoming?.status==='pending'?'btn-primary':outgoing?.status==='pending'?'btn-ghost':'btn-ghost';
+
   if(isSelf) return null;
   return (
-    <div style={{display:'flex',alignItems:'center',gap:12,padding:'11px 0',borderBottom:'1px solid var(--border)',position:'relative'}}>
+    <div style={{display:'flex',alignItems:'center',gap:10,padding:'11px 0',borderBottom:'1px solid var(--border)',position:'relative'}}>
       <div className="activity-avatar" style={{background:`${ac(user.username)}22`,color:ac(user.username),cursor:'pointer',flexShrink:0}}
         onClick={()=>navigate('public_profile',{userId:user.id,username:user.username})}>
         {(user.username||'?').charAt(0).toUpperCase()}
       </div>
       <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>navigate('public_profile',{userId:user.id,username:user.username})}>
         <div style={{fontSize:14,fontWeight:700,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{user.username}</div>
+        {isFriends&&<div style={{fontSize:10,color:'var(--green)',fontWeight:700}}>Friends</div>}
         {isBlocked&&<div style={{fontSize:11,color:'var(--red)',fontWeight:600}}>Blocked</div>}
       </div>
       {isBlocked ? (
         <button className="btn btn-ghost btn-sm" onClick={()=>{dispatch({type:'UNBLOCK',userId:user.id});showToast('Unblocked');}}>Unblock</button>
       ) : (
         <>
+          {/* Friend button */}
+          {!isFriends&&(
+            <button className={`btn btn-sm ${incoming?.status==='pending'?'btn-primary':'btn-ghost'}`}
+              disabled={frBusy}
+              style={{fontSize:12,padding:'6px 11px',flexShrink:0,
+                ...(incoming?.status==='pending'?{}:{borderColor:'var(--accent)',color:'var(--accent)'})}}
+              onClick={friendAction}>
+              {frBusy?'…':friendLabel}
+            </button>
+          )}
+          {isFriends&&(
+            <span style={{fontSize:11,color:'var(--green)',fontWeight:700,flexShrink:0}}>✓ Friends</span>
+          )}
+          {/* Follow button */}
           <button className={"btn btn-sm "+(isFollowing?'btn-ghost':'btn-primary')}
+            style={{fontSize:12,padding:'6px 11px',flexShrink:0}}
             onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId:user.id,username:user.username});showToast(isFollowing?'Unfollowed':('Following '+user.username+'!'));}}>
-            {isFollowing?'Following ✓':'+ Follow'}
+            {isFollowing?'Following ✓':'Follow'}
           </button>
+          {/* ⋯ menu */}
           <div style={{position:'relative'}}>
-            <button className="btn btn-ghost btn-sm" style={{padding:'4px 8px',fontSize:18,lineHeight:1}} onClick={e=>{e.stopPropagation();setMenuOpen(v=>!v);}}>⋯</button>
+            <button className="btn btn-ghost btn-sm" style={{padding:'4px 8px',fontSize:16,lineHeight:1,flexShrink:0}} onClick={e=>{e.stopPropagation();setMenuOpen(v=>!v);}}>⋯</button>
             {menuOpen&&(
               <div style={{position:'absolute',right:0,top:'calc(100% + 4px)',background:'var(--s3)',border:'1px solid var(--border)',borderRadius:12,padding:'4px 0',zIndex:200,minWidth:140,boxShadow:'0 6px 24px rgba(0,0,0,0.45)'}}
                 onClick={e=>e.stopPropagation()}>
