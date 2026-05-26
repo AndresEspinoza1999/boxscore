@@ -57,46 +57,58 @@
     }
     #root{
       height:100%;
+      /* phone cap only on mobile */
       max-width:430px;
       margin:0 auto;
       position:relative;
     }
-    /* ── DESKTOP WRAPPER ── */
-    /* On screens wider than 500px, give the body a gradient bg and
-       float the app as a centered phone-shaped card */
-    @media (min-width:500px){
-      html,body{ height:100%; }
-      body{
-        background:linear-gradient(135deg,#0d0d14 0%,#12121e 50%,#0d0d14 100%);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        padding:24px 0;
+
+    /* ── DESKTOP SIDEBAR (hidden on mobile) ── */
+    .desktop-sidebar{ display:none; }
+    .desktop-nav-item{
+      display:flex;align-items:center;gap:12px;
+      padding:11px 14px;border-radius:12px;
+      cursor:pointer;font-size:15px;font-weight:600;
+      color:var(--text3);transition:all 0.15s;
+    }
+    .desktop-nav-item:hover{background:var(--s2);color:var(--text);}
+    .desktop-nav-item.active{background:rgba(240,191,61,0.12);color:var(--accent);}
+    .desktop-nav-item svg{width:22px;height:22px;flex-shrink:0;}
+
+    /* ── DESKTOP LAYOUT (≥ 768 px) ── */
+    @media(min-width:768px){
+      #root{ max-width:none; margin:0; }
+
+      /* Switch app-root to side-by-side */
+      .app-root{ flex-direction:row !important; }
+
+      /* Hide mobile-only pieces */
+      .status-bar-spacer{ display:none !important; }
+      .nav{ display:none !important; }
+
+      /* Show sidebar */
+      .desktop-sidebar{
+        display:flex;flex-direction:column;
+        width:220px;flex-shrink:0;
+        background:var(--s1);border-right:1px solid var(--border);
+        padding:28px 12px 24px;
+        overflow-y:auto;
       }
-      #root{
-        height:min(900px,calc(100vh - 48px));
-        border-radius:44px;
-        overflow:hidden;
-        box-shadow:
-          0 0 0 1px rgba(255,255,255,0.08),
-          0 32px 80px rgba(0,0,0,0.7),
-          0 0 0 8px #1a1a24,
-          0 0 0 9px rgba(255,255,255,0.05);
-        /* subtle notch bar at top */
-        position:relative;
+
+      /* Content column fills the rest */
+      .desktop-content{
+        flex:1;min-width:0;height:100%;overflow:hidden;
       }
-      /* faux notch / Dynamic Island pill on desktop */
-      #root::before{
-        content:'';
-        position:absolute;
-        top:12px;left:50%;transform:translateX(-50%);
-        width:120px;height:32px;
-        background:#000;border-radius:20px;
-        z-index:1000;pointer-events:none;
-      }
-      .app-root{
-        border-radius:44px;
-        overflow:hidden;
+
+      /* Cap and center page content */
+      .page{max-width:680px;margin:0 auto;}
+
+      /* Toast in bottom-right corner (no nav bar to avoid) */
+      .toast{
+        bottom:28px !important;
+        right:28px !important;
+        left:auto !important;
+        transform:none !important;
       }
     }
     input,textarea,button,select{font-family:inherit;font-size:15px;outline:none;}
@@ -3243,22 +3255,64 @@ function App() {
   const activePage=(route.page==='game'||route.page==='list')?null:route.page;
   const NAV=[{id:'home',label:'Home',Icon:IconHome},{id:'search',label:'Search',Icon:IconSearch},{id:'add',label:'',isAdd:true},{id:'friends',label:'Friends',Icon:IconPeople},{id:'profile',label:'Profile',Icon:IconPerson}];
 
+  const unreadCount=(state.notifications||[]).filter(n=>!n.read).length;
+  const pendingFR=(state.friendRequests||[]).filter(r=>r.toUserId===state.currentUser.id&&r.status==='pending').length;
+  const badge=pendingFR+unreadCount;
+
   return (
     <div className="app-root">
-      {/* Status-bar spacer — prevents overlap with notch/Dynamic Island/status bar */}
-      <div style={{flexShrink:0,background:'var(--bg)',height:'20px',height:'max(20px,env(safe-area-inset-top,0px))'}}/>
-      <PullToRefresh>
-        <div style={{flex:1,overflow:'hidden',height:'100%'}}>
-          {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]} dispatch={dispatch} showToast={showToast}/>}
-          {route.page==='search'      &&<SearchPage      state={state} navigate={navigate}/>}
-          {route.page==='leaderboard' &&<LeaderboardPage state={state} navigate={navigate}/>}
-          {route.page==='friends'     &&<FriendsPage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-          {route.page==='profile'     &&<ProfilePage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onSignOut={()=>sb.auth.signOut()}/>}
-          {route.page==='game'        &&<GamePage        gameId={route.params.gameId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-          {route.page==='public_profile'&&<PublicProfilePage userId={route.params.userId} username={route.params.username} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-          {route.page==='list'          &&<ListDetailPage   listId={route.params.listId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+      {/* ── Mobile only: status-bar spacer ── */}
+      <div className="status-bar-spacer" style={{flexShrink:0,background:'var(--bg)',height:'20px',height:'max(20px,env(safe-area-inset-top,0px))'}}/>
+
+      {/* ── Desktop only: left sidebar ── */}
+      <div className="desktop-sidebar">
+        <BoxscoreLogo fontSize={20}/>
+        <div style={{height:28}}/>
+        {[
+          {id:'home',   label:'Home',    Icon:IconHome},
+          {id:'search', label:'Search',  Icon:IconSearch},
+          {id:'friends',label:'Friends', Icon:IconPeople},
+          {id:'profile',label:'Profile', Icon:IconPerson},
+        ].map(item=>(
+          <div key={item.id} className={`desktop-nav-item${activePage===item.id?' active':''}`} onClick={()=>navigate(item.id)}>
+            <item.Icon active={activePage===item.id}/>
+            <span>{item.label}</span>
+            {item.id==='friends'&&badge>0&&(
+              <span style={{marginLeft:'auto',minWidth:18,height:18,borderRadius:9,background:'var(--accent)',color:'#000',fontSize:10,fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 4px'}}>{badge}</span>
+            )}
+          </div>
+        ))}
+        <div style={{height:12}}/>
+        <button className="btn btn-primary btn-full" style={{fontSize:14,padding:'11px 0'}} onClick={()=>setAddGame(true)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Game
+        </button>
+        <div style={{flex:1}}/>
+        <div style={{borderTop:'1px solid var(--border)',paddingTop:12,marginTop:16}}>
+          <div className="desktop-nav-item" style={{fontSize:13}} onClick={()=>sb.auth.signOut()}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </div>
         </div>
-      </PullToRefresh>
+      </div>
+
+      {/* ── Main content area ── */}
+      <div className="desktop-content" style={{flex:1,overflow:'hidden',height:'100%'}}>
+        <PullToRefresh>
+          <div style={{flex:1,overflow:'hidden',height:'100%'}}>
+            {route.page==='home'          &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]} dispatch={dispatch} showToast={showToast}/>}
+            {route.page==='search'        &&<SearchPage      state={state} navigate={navigate}/>}
+            {route.page==='leaderboard'   &&<LeaderboardPage state={state} navigate={navigate}/>}
+            {route.page==='friends'       &&<FriendsPage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+            {route.page==='profile'       &&<ProfilePage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onSignOut={()=>sb.auth.signOut()}/>}
+            {route.page==='game'          &&<GamePage        gameId={route.params.gameId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+            {route.page==='public_profile'&&<PublicProfilePage userId={route.params.userId} username={route.params.username} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+            {route.page==='list'          &&<ListDetailPage   listId={route.params.listId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+          </div>
+        </PullToRefresh>
+      </div>
+
+      {/* ── Mobile only: bottom nav ── */}
       <div className="nav">
         {NAV.map(tab=>(
           <div key={tab.id} className={`nav-item${activePage===tab.id?' active':''}`} onClick={()=>{if(tab.isAdd){setAddGame(true);return;}navigate(tab.id);}}>
@@ -3266,6 +3320,7 @@ function App() {
           </div>
         ))}
       </div>
+
       {addGame&&<AddGameSheet onClose={()=>setAddGame(false)} onSelect={async(g)=>{await dispatch({type:'UPSERT_API_GAME',game:g});setAddGame(false);navigate('game',{gameId:'api_'+g.apiId});}}/>}
       {toast&&<div className="toast">{toast}</div>}
       <InstallBanner/>
