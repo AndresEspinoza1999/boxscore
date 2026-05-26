@@ -1048,12 +1048,13 @@ function NotificationsSheet({ notifications, games, apiGames, onClose, onMarkRea
   };
 
   const FriendRequestActions = ({n}) => {
+    // useState must come before any conditional return (Rules of Hooks)
+    const [busy,setBusy]=useState(false);
     const req = (friendRequests||[]).find(r=>r.fromUserId===n.fromUserId&&r.status==='pending');
     if(!req) return null;
-    const [busy,setBusy]=useState(false);
     const handle=async(type)=>{
       setBusy(true);
-      const res=await dispatch({type,requestId:req.id});
+      await dispatch({type,requestId:req.id});
       setBusy(false);
       if(type==='ACCEPT_FRIEND_REQUEST') showToast('🎉 Friends with '+n.fromUsername+'!');
       else showToast('Request declined');
@@ -1843,6 +1844,43 @@ function UserRow({ user, state, dispatch, navigate, showToast }) {
 }
 
 /* ── FRIENDS PAGE ── */
+/* ── REQUEST ROW (used in FriendsPage requests tab) ── */
+function RequestRow({req, dispatch, navigate, showToast, ac, type}) {
+  const [busy,setBusy]=useState(false);
+  const isSent=type==='sent';
+  const name=isSent?req.toUsername:req.fromUsername;
+  const uid=isSent?req.toUserId:req.fromUserId;
+  const handle=async(actionType)=>{
+    setBusy(true);
+    await dispatch({type:actionType,requestId:req.id});
+    setBusy(false);
+    if(actionType==='ACCEPT_FRIEND_REQUEST') showToast('🎉 Friends with '+name+'!');
+    else if(actionType==='DECLINE_FRIEND_REQUEST') showToast('Request declined');
+    else showToast('Request cancelled');
+  };
+  return(
+    <div style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
+      <div style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,flex:1,minWidth:0}} onClick={()=>navigate('public_profile',{userId:uid,username:name})}>
+        <div className="activity-avatar" style={{background:(ac(name)||'#888')+'22',color:ac(name)||'#888',flexShrink:0,width:44,height:44,fontSize:16}}>
+          {(name||'?')[0].toUpperCase()}
+        </div>
+        <div style={{minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{name}</div>
+          <div style={{fontSize:11,color:'var(--text3)'}}>{isSent?'Request pending…':'Wants to be friends'}</div>
+        </div>
+      </div>
+      {isSent?(
+        <button className="btn btn-ghost btn-sm" disabled={busy} style={{fontSize:11,padding:'5px 10px',flexShrink:0}} onClick={()=>handle('CANCEL_FRIEND_REQUEST')}>Cancel</button>
+      ):(
+        <div style={{display:'flex',gap:6,flexShrink:0}}>
+          <button className="btn btn-primary btn-sm" disabled={busy} style={{padding:'6px 12px',fontSize:12}} onClick={()=>handle('ACCEPT_FRIEND_REQUEST')}>Accept</button>
+          <button className="btn btn-ghost btn-sm" disabled={busy} style={{padding:'6px 10px',fontSize:12}} onClick={()=>handle('DECLINE_FRIEND_REQUEST')}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── FOLLOW LIST MODAL (followers / following) ── */
 function FollowListModal({ type, userId, state, dispatch, navigate, showToast, onClose }) {
   const [users, setUsers] = useState(null);
@@ -2055,54 +2093,18 @@ function FriendsPage({ state, dispatch, navigate, showToast }) {
               <div className="empty-icon">🤝</div>
               <p>No pending friend requests</p>
             </div>
-          ):pendingRequests.map(req=>{
-            const [busy,setBusy]=useState(false);
-            const handle=async(type)=>{setBusy(true);await dispatch({type,requestId:req.id});setBusy(false);showToast(type==='ACCEPT_FRIEND_REQUEST'?`🎉 Friends with ${req.fromUsername}!`:'Request declined');};
-            return(
-              <div key={req.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:'1px solid var(--border)'}}>
-                <div style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,flex:1,minWidth:0}}
-                  onClick={()=>navigate('public_profile',{userId:req.fromUserId,username:req.fromUsername})}>
-                  <div className="activity-avatar" style={{background:ac(req.fromUsername)+'22',color:ac(req.fromUsername),flexShrink:0,width:44,height:44,fontSize:16}}>
-                    {(req.fromUsername||'?')[0].toUpperCase()}
-                  </div>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{req.fromUsername}</div>
-                    <div style={{fontSize:11,color:'var(--text3)'}}>Wants to be friends</div>
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:6,flexShrink:0}}>
-                  <button className="btn btn-primary btn-sm" disabled={busy} style={{padding:'6px 12px',fontSize:12}} onClick={()=>handle('ACCEPT_FRIEND_REQUEST')}>Accept</button>
-                  <button className="btn btn-ghost btn-sm" disabled={busy} style={{padding:'6px 10px',fontSize:12}} onClick={()=>handle('DECLINE_FRIEND_REQUEST')}>✕</button>
-                </div>
-              </div>
-            );
-          })}
+          ):pendingRequests.map(req=>(
+            <RequestRow key={req.id} req={req} dispatch={dispatch} navigate={navigate} showToast={showToast} ac={ac} type="incoming"/>
+          ))}
           {/* Sent requests */}
-          {(()=>{
-            const sent=(state.friendRequests||[]).filter(r=>r.fromUserId===state.currentUser.id&&r.status==='pending');
-            if(!sent.length)return null;
-            return(
-              <div style={{marginTop:24}}>
-                <div className="t-micro" style={{marginBottom:8}}>Sent Requests · {sent.length}</div>
-                {sent.map(req=>(
-                  <div key={req.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
-                    <div style={{cursor:'pointer',display:'flex',alignItems:'center',gap:12,flex:1,minWidth:0}}
-                      onClick={()=>navigate('public_profile',{userId:req.toUserId,username:req.toUsername})}>
-                      <div className="activity-avatar" style={{background:ac(req.toUsername)+'22',color:ac(req.toUsername),flexShrink:0,width:40,height:40,fontSize:15}}>
-                        {(req.toUsername||'?')[0].toUpperCase()}
-                      </div>
-                      <div style={{minWidth:0}}>
-                        <div style={{fontWeight:700,fontSize:14}}>{req.toUsername}</div>
-                        <div style={{fontSize:11,color:'var(--text3)'}}>Request pending…</div>
-                      </div>
-                    </div>
-                    <button className="btn btn-ghost btn-sm" style={{fontSize:11,padding:'5px 10px',flexShrink:0}}
-                      onClick={()=>{dispatch({type:'CANCEL_FRIEND_REQUEST',requestId:req.id});showToast('Request cancelled');}}>Cancel</button>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
+          {(state.friendRequests||[]).filter(r=>r.fromUserId===state.currentUser.id&&r.status==='pending').length>0&&(
+            <div style={{marginTop:24}}>
+              <div className="t-micro" style={{marginBottom:8}}>Sent Requests · {(state.friendRequests||[]).filter(r=>r.fromUserId===state.currentUser.id&&r.status==='pending').length}</div>
+              {(state.friendRequests||[]).filter(r=>r.fromUserId===state.currentUser.id&&r.status==='pending').map(req=>(
+                <RequestRow key={req.id} req={req} dispatch={dispatch} navigate={navigate} showToast={showToast} ac={ac} type="sent"/>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2118,6 +2120,11 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   const [avatarVal, setAvatarVal] = useState(state.profile?.avatar_url||'');
   const [showCreateList,setShowCreateList]=useState(false);
   const [followModal,setFollowModal]=useState(null); // 'followers' | 'following'
+  const [followerCount,setFollowerCount]=useState(null);
+  useEffect(()=>{
+    sb.from('follows').select('id',{count:'exact',head:true}).eq('following_id',state.currentUser.id)
+      .then(({count})=>setFollowerCount(count||0));
+  },[state.currentUser.id]);
   const myReviews=state.reviews.filter(r=>r.userId===state.currentUser.id);
   const allGames=[...state.games,...(state.apiGames||[])].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i);
   const watchGames=allGames.filter(g=>state.watchlist.includes(g.id));
@@ -2154,7 +2161,7 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
         )}
         <div className="profile-stats" style={{marginTop:14}}>
           <div><div className="stat-num">{myReviews.length}</div><div className="stat-lbl">Reviews</div></div>
-          <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('followers')}><div className="stat-num" style={{color:'var(--accent)'}}>{(state.follows||[]).filter(f=>f.following_id===state.currentUser.id).length || '—'}</div><div className="stat-lbl">Followers</div></div>
+          <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('followers')}><div className="stat-num" style={{color:'var(--accent)'}}>{followerCount===null?'—':followerCount}</div><div className="stat-lbl">Followers</div></div>
           <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('following')}><div className="stat-num" style={{color:'var(--accent)'}}>{followingCount}</div><div className="stat-lbl">Following</div></div>
           <div><div className="stat-num">{avgMine}</div><div className="stat-lbl">Avg ★</div></div>
         </div>
@@ -3056,7 +3063,7 @@ function App() {
         if(error){console.error('SEND_FRIEND_REQUEST error',error);return {ok:false,error:error.message};}
         setFriendRequests(prev=>[normalizeRequest(data),...prev]);
         // Notify the recipient
-        await sb.from('notifications').insert({user_id:toId,type:'friend_request',from_user_id:uid,from_username:myUname,request_id:data.id});
+        await sb.from('notifications').insert({user_id:toId,type:'friend_request',from_user_id:uid,from_username:myUname});
         return {ok:true};
       }
       case 'ACCEPT_FRIEND_REQUEST': {
