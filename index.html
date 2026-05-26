@@ -1309,6 +1309,7 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
   const [followModal, setFollowModal] = useState(null);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [frBusy, setFrBusy] = useState(false);
   const isFollowing = (state.follows||[]).some(f=>f.following_id===userId);
   const isSelf = state.currentUser.id === userId;
 
@@ -1338,23 +1339,6 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
   const displayName = profileData?.username || username || 'User';
   const avgR = userReviews.length ? (userReviews.reduce((a,b)=>a+b.rating,0)/userReviews.length).toFixed(1) : '—';
 
-  const FriendBtn = () => {
-    const [busy,setBusy]=useState(false);
-    if(isFriends) return <div style={{marginTop:8,fontSize:12,color:'var(--green)',fontWeight:700}}>✓ Friends</div>;
-    if(incoming&&incoming.status==='pending') return(
-      <div style={{display:'flex',gap:6,marginTop:8}}>
-        <button className="btn btn-primary btn-sm" disabled={busy} style={{fontSize:12}} onClick={async()=>{setBusy(true);const r=await dispatch({type:'ACCEPT_FRIEND_REQUEST',requestId:incoming.id});setBusy(false);showToast(r?.ok?'🎉 Friends with '+displayName+'!':'Error');}}>Accept Request</button>
-        <button className="btn btn-ghost btn-sm" disabled={busy} style={{fontSize:12}} onClick={async()=>{setBusy(true);await dispatch({type:'DECLINE_FRIEND_REQUEST',requestId:incoming.id});setBusy(false);showToast('Declined');}}>Decline</button>
-      </div>
-    );
-    if(outgoing&&outgoing.status==='pending') return(
-      <button className="btn btn-ghost btn-sm" disabled={busy} style={{marginTop:8,fontSize:12}} onClick={async()=>{setBusy(true);await dispatch({type:'CANCEL_FRIEND_REQUEST',requestId:outgoing.id});setBusy(false);showToast('Request cancelled');}}>⏳ Request Sent — Cancel</button>
-    );
-    return(
-      <button className="btn btn-ghost btn-sm" disabled={busy} style={{marginTop:8,fontSize:12}} onClick={async()=>{setBusy(true);const r=await dispatch({type:'SEND_FRIEND_REQUEST',userId,username:displayName});setBusy(false);showToast(r?.ok?'Friend request sent!':'Error: '+(r?.error||''));}}>🤝 Add Friend</button>
-    );
-  };
-
   if(loading) return <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}><div className="spinner"/></div>;
 
   return (
@@ -1363,16 +1347,26 @@ function PublicProfilePage({ userId, username, state, dispatch, navigate, showTo
         <div className="back-btn" onClick={()=>navigate('home')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Back</div>
       </div>
       <div className="profile-hd">
-        <AvatarImg name={displayName} url={profileData?.avatar_url} size={72}/>
-        <div className="profile-name">{displayName}</div>
+        <AvatarImg name={displayName} url={profileData?.avatar_url} size={72} style={{margin:'0 auto'}}/>
+        <div className="profile-name" style={{marginTop:10,marginBottom:2}}>{displayName}</div>
         {profileData?.bio&&<div style={{fontSize:13,color:'var(--text2)',textAlign:'center',margin:'4px 16px 0',lineHeight:1.4}}>{profileData.bio}</div>}
         {!isSelf&&(
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,marginTop:12}}>
+          <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap',marginTop:12}}>
             <button className={"btn btn-sm " + (isFollowing?'btn-ghost':'btn-primary')}
               onClick={()=>{dispatch({type:isFollowing?'UNFOLLOW':'FOLLOW',userId,username:displayName});showToast(isFollowing?'Unfollowed':'Following '+displayName+'!');}}>
               {isFollowing?'Following ✓':'+ Follow'}
             </button>
-            <FriendBtn/>
+            {isFriends
+              ? <div style={{display:'flex',alignItems:'center',fontSize:13,fontWeight:700,color:'var(--green)'}}>✓ Friends</div>
+              : incoming?.status==='pending'
+                ? <div style={{display:'flex',gap:6}}>
+                    <button className="btn btn-primary btn-sm" disabled={frBusy} onClick={async()=>{setFrBusy(true);const r=await dispatch({type:'ACCEPT_FRIEND_REQUEST',requestId:incoming.id});setFrBusy(false);showToast(r?.ok?'🎉 Friends with '+displayName+'!':'Error');}}>Accept 🤝</button>
+                    <button className="btn btn-ghost btn-sm" disabled={frBusy} onClick={async()=>{setFrBusy(true);await dispatch({type:'DECLINE_FRIEND_REQUEST',requestId:incoming.id});setFrBusy(false);showToast('Declined');}}>Decline</button>
+                  </div>
+                : outgoing?.status==='pending'
+                  ? <button className="btn btn-ghost btn-sm" disabled={frBusy} onClick={async()=>{setFrBusy(true);await dispatch({type:'CANCEL_FRIEND_REQUEST',requestId:outgoing.id});setFrBusy(false);showToast('Request cancelled');}}>⏳ Pending — Cancel</button>
+                  : <button className="btn btn-primary btn-sm" disabled={frBusy} onClick={async()=>{setFrBusy(true);const r=await dispatch({type:'SEND_FRIEND_REQUEST',userId,username:displayName});setFrBusy(false);showToast(r?.ok?'Friend request sent!':'Error: '+(r?.error||''));}}>{frBusy?'…':'🤝 Add Friend'}</button>
+            }
           </div>
         )}
         <div className="profile-stats" style={{marginTop:14}}>
@@ -2246,7 +2240,7 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   return (
     <div className="page">
       <div className="profile-hd">
-        <AvatarImg name={state.currentUser.name} url={state.profile?.avatar_url} size={72}/>
+        <AvatarImg name={state.currentUser.name} url={state.profile?.avatar_url} size={72} style={{margin:'0 auto'}}/>
         {editing?(
           <div style={{maxWidth:300,margin:'12px auto 0',display:'flex',flexDirection:'column',gap:10}}>
             <input value={nameVal} onChange={e=>setNameVal(e.target.value)} placeholder="Username" style={{textAlign:'center',fontWeight:700}}/>
