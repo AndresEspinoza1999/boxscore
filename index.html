@@ -110,6 +110,17 @@
         left:auto !important;
         transform:none !important;
       }
+
+      /* Hide page-level logo (already in sidebar) */
+      .logo-desktop-hide{ display:none !important; }
+
+      /* Hide duplicate Sign Out on profile page */
+      .profile-signout{ display:none !important; }
+
+      /* Page title instead of logo on desktop */
+      .app-hd .app-sub{
+        font-size:16px;font-weight:800;color:var(--text);letter-spacing:-0.3px;
+      }
     }
     input,textarea,button,select{font-family:inherit;font-size:15px;outline:none;}
     input,textarea,select{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:11px 14px;width:100%;transition:border 0.15s;}
@@ -1212,7 +1223,7 @@ function HomePage({ state, navigate, onRefresh, notifications, onMarkNotifsRead,
           <div className="spinner" style={{width:20,height:20,opacity:Math.min(pullDist/PULL_THRESHOLD,1)}}/>
         </div>
       )}
-      <div className="app-hd"><div><BoxscoreLogo fontSize={26}/><div className="app-sub">Rate every game</div></div>
+      <div className="app-hd"><div><div className="logo-desktop-hide"><BoxscoreLogo fontSize={26}/></div><div className="app-sub">Rate every game</div></div>
         <div style={{position:'relative',cursor:'pointer'}} onClick={()=>setShowNotifs(true)}>
           <IconBell/>
           {unreadCount>0&&<div style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',borderRadius:'50%',width:16,height:16,fontSize:10,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>{unreadCount>9?'9+':unreadCount}</div>}
@@ -1428,7 +1439,7 @@ function SearchPage({ state, navigate }) {
   const AcList=({items,query,onPick,label})=>(<div className="ac-list"><div className="ac-hdr">{query?`${items.length} result${items.length!==1?'s':''}`:label}</div>{items.map(t=>{const q=query.toLowerCase(),idx=q?t.toLowerCase().indexOf(q):-1;return(<div key={t} className="ac-item" onMouseDown={e=>e.preventDefault()} onClick={()=>onPick(t)}><span>{idx>=0?<>{t.slice(0,idx)}<mark>{t.slice(idx,idx+query.length)}</mark>{t.slice(idx+query.length)}</>:t}</span><span style={{fontSize:12,color:'var(--text3)'}}>›</span></div>);})}</div>);
   return (
     <div className="page">
-      <div className="search-hd"><BoxscoreLogo fontSize={22} style={{marginBottom:12}}/>
+      <div className="search-hd"><div className="logo-desktop-hide"><BoxscoreLogo fontSize={22} style={{marginBottom:12}}/></div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10}}>
           {SPORTS.filter(s=>s.id!=='all').map(s=><div key={s.id} className={`f-pill sc-${s.id}${sport===s.id?' active':''}`} style={{['--sport-c']:getSportColor(s.id)}} onClick={()=>setSport(sport===s.id?'':s.id)}>{s.emoji} {s.label}</div>)}
         </div>
@@ -1805,7 +1816,7 @@ function LeaderboardPage({ state, navigate }) {
   const rankEmoji=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1;
   return (
     <div className="page">
-      <div className="app-hd"><div><BoxscoreLogo fontSize={26}/><div className="app-sub">Top rated games</div></div><span style={{fontSize:24}}>🏆</span></div>
+      <div className="app-hd"><div><div className="logo-desktop-hide"><BoxscoreLogo fontSize={26}/></div><div className="app-sub">Top rated games</div></div><span style={{fontSize:24}}>🏆</span></div>
       {friendsActivity.length>0&&sport==='all'&&(
         <div style={{padding:'0 16px 4px'}}>
           <div className="section-hd" style={{padding:'8px 0'}}><span className="section-title">👥 Friends</span></div>
@@ -2259,7 +2270,7 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
           <div style={{cursor:'pointer'}} onClick={()=>setFollowModal('following')}><div className="stat-num" style={{color:'var(--accent)'}}>{followingCount}</div><div className="stat-lbl">Following</div></div>
           <div><div className="stat-num">{avgMine}</div><div className="stat-lbl">Avg ★</div></div>
         </div>
-        <button className="btn btn-ghost btn-sm" style={{margin:'8px auto 16px',display:'flex'}} onClick={onSignOut}>Sign Out</button>
+        <button className="btn btn-ghost btn-sm profile-signout" style={{margin:'8px auto 16px',display:'flex'}} onClick={onSignOut}>Sign Out</button>
       </div>
       {followModal&&<FollowListModal type={followModal} userId={state.currentUser.id} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onClose={()=>setFollowModal(null)}/>}
       <div className="tab-bar">{[['reviews',`Reviews (${myReviews.length})`],['saved',`Saved (${watchGames.length})`],['lists',`Lists (${myLists.length})`]].map(([id,lbl])=><div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>)}</div>
