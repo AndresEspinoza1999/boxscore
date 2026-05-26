@@ -121,6 +121,8 @@
       .app-hd .app-sub{
         font-size:16px;font-weight:800;color:var(--text);letter-spacing:-0.3px;
       }
+      /* Restore generous top padding on desktop (no safe-area spacer there) */
+      .app-hd{ padding-top:16px; }
     }
     input,textarea,button,select{font-family:inherit;font-size:15px;outline:none;}
     input,textarea,select{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:11px 14px;width:100%;transition:border 0.15s;}
@@ -166,7 +168,7 @@
     /* Safe-area is handled by the root spacer div in React — just use visual padding here */
     .app-hd{
       display:flex;align-items:center;justify-content:space-between;
-      padding:14px 16px 8px;
+      padding:8px 16px 8px;
     }
     .app-logo{display:inline-flex;align-items:center;gap:7px;font-size:26px;font-weight:900;letter-spacing:-0.5px;}
     .app-sub{font-size:12px;color:var(--text3);}
@@ -3268,7 +3270,7 @@ function App() {
   return (
     <div className="app-root">
       {/* ── Mobile only: status-bar spacer ── */}
-      <div className="status-bar-spacer" style={{flexShrink:0,background:'var(--bg)',height:'20px',height:'max(20px,env(safe-area-inset-top,0px))'}}/>
+      <div className="status-bar-spacer" style={{flexShrink:0,background:'var(--bg)',height:'max(20px,min(env(safe-area-inset-top,0px),59px))'}}/>
 
       {/* ── Desktop only: left sidebar ── */}
       <div className="desktop-sidebar">
