@@ -2467,6 +2467,98 @@ function InstallBanner() {
   );
 }
 
+/* ── PULL TO REFRESH ── */
+function PullToRefresh({children}){
+  const [pullY,setPullY]=useState(0);
+  const [stage,setStage]=useState('idle'); // idle | pulling | ready | refreshing
+  const containerRef=useRef(null);
+  const startYRef=useRef(0);
+  const activeRef=useRef(false);
+  const pullYRef=useRef(0);
+  const THRESHOLD=70;
+
+  useEffect(()=>{
+    const el=containerRef.current;
+    if(!el)return;
+    const getScrollTop=()=>{
+      const page=el.querySelector('.page');
+      return page?page.scrollTop:0;
+    };
+    const onStart=(e)=>{
+      if(getScrollTop()>5)return;
+      startYRef.current=e.touches[0].clientY;
+      activeRef.current=true;
+    };
+    const onMove=(e)=>{
+      if(!activeRef.current)return;
+      const dy=e.touches[0].clientY-startYRef.current;
+      if(dy<=0||getScrollTop()>5){
+        activeRef.current=false;
+        pullYRef.current=0;
+        setPullY(0);setStage('idle');return;
+      }
+      const pull=Math.min(THRESHOLD*1.5,dy*0.45);
+      pullYRef.current=pull;
+      setPullY(pull);
+      setStage(pull>=THRESHOLD?'ready':'pulling');
+    };
+    const onEnd=()=>{
+      if(!activeRef.current)return;
+      activeRef.current=false;
+      if(pullYRef.current>=THRESHOLD){
+        setStage('refreshing');
+        setPullY(THRESHOLD);
+        setTimeout(()=>window.location.reload(true),400);
+      } else {
+        setPullY(0);setStage('idle');
+      }
+    };
+    el.addEventListener('touchstart',onStart,{passive:true});
+    el.addEventListener('touchmove',onMove,{passive:true});
+    el.addEventListener('touchend',onEnd);
+    return()=>{
+      el.removeEventListener('touchstart',onStart);
+      el.removeEventListener('touchmove',onMove);
+      el.removeEventListener('touchend',onEnd);
+    };
+  },[]);
+
+  const indicatorH=Math.max(0,pullY);
+  const isMoving=pullY>0;
+  return(
+    <div ref={containerRef} style={{height:'100%',position:'relative',overflow:'hidden'}}>
+      {/* Pull indicator */}
+      <div style={{
+        position:'absolute',top:0,left:0,right:0,
+        height:indicatorH,
+        background:'var(--bg)',
+        display:'flex',alignItems:'flex-end',justifyContent:'center',
+        paddingBottom:8,zIndex:20,overflow:'hidden',
+        transition:isMoving?'none':'height 0.25s ease'
+      }}>
+        {pullY>24&&(
+          <div style={{display:'flex',alignItems:'center',gap:6,color:'var(--text3)',fontSize:12,fontWeight:700}}>
+            {stage==='refreshing'
+              ?<><div className="spinner" style={{width:16,height:16,borderWidth:2}}/> Refreshing…</>
+              :stage==='ready'
+              ?<span style={{color:'var(--accent)'}}>↑ Release to refresh</span>
+              :<span>↓ Pull to refresh</span>
+            }
+          </div>
+        )}
+      </div>
+      {/* Page content pushed down while pulling */}
+      <div style={{
+        height:'100%',
+        transform:`translateY(${pullY}px)`,
+        transition:isMoving?'none':'transform 0.25s ease'
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ── ROOT APP ── */
 function App() {
   const [session,  setSession]   = useState(null);
@@ -2798,16 +2890,18 @@ function App() {
       {/* Status-bar spacer — sits above all content, prevents overlap with notch/Dynamic Island/status bar.
           Uses env() for notch/DI phones; falls back to 20px (flat status bar) when env is 0. */}
       <div style={{flexShrink:0,background:'var(--bg)',height:'max(20px,env(safe-area-inset-top))'}}/>
-      <div style={{flex:1,overflow:'hidden'}}>
-        {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]}/>}
-        {route.page==='search'      &&<SearchPage      state={state} navigate={navigate}/>}
-        {route.page==='leaderboard' &&<LeaderboardPage state={state} navigate={navigate}/>}
-        {route.page==='friends'     &&<FriendsPage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-        {route.page==='profile'     &&<ProfilePage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onSignOut={()=>sb.auth.signOut()}/>}
-        {route.page==='game'        &&<GamePage        gameId={route.params.gameId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-        {route.page==='public_profile'&&<PublicProfilePage userId={route.params.userId} username={route.params.username} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-        {route.page==='list'          &&<ListDetailPage   listId={route.params.listId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
-      </div>
+      <PullToRefresh>
+        <div style={{flex:1,overflow:'hidden',height:'100%'}}>
+          {route.page==='home'        &&<HomePage        state={state} navigate={navigate} onRefresh={fetchApiGames} onMarkNotifsRead={()=>dispatch({type:'MARK_NOTIFS_READ'})} notifications={state.notifications||[]}/>}
+          {route.page==='search'      &&<SearchPage      state={state} navigate={navigate}/>}
+          {route.page==='leaderboard' &&<LeaderboardPage state={state} navigate={navigate}/>}
+          {route.page==='friends'     &&<FriendsPage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+          {route.page==='profile'     &&<ProfilePage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onSignOut={()=>sb.auth.signOut()}/>}
+          {route.page==='game'        &&<GamePage        gameId={route.params.gameId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+          {route.page==='public_profile'&&<PublicProfilePage userId={route.params.userId} username={route.params.username} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+          {route.page==='list'          &&<ListDetailPage   listId={route.params.listId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+        </div>
+      </PullToRefresh>
       <div className="nav">
         {NAV.map(tab=>(
           <div key={tab.id} className={`nav-item${activePage===tab.id?' active':''}`} onClick={()=>{if(tab.isAdd){setAddGame(true);return;}navigate(tab.id);}}>
