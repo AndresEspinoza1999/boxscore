@@ -84,8 +84,9 @@
       background:var(--s1);
       border-top:1px solid var(--border);
       padding-top:8px;
-      padding-bottom:20px; /* base fallback */
-      padding-bottom:max(20px,env(safe-area-inset-bottom,0px));
+      padding-bottom:16px; /* base fallback */
+      /* cap at 44px — prevents browser-toolbar from inflating to ~84px in Safari browser mode */
+      padding-bottom:max(16px,min(env(safe-area-inset-bottom,0px),44px));
       padding-left:env(safe-area-inset-left,0px);
       padding-right:env(safe-area-inset-right,0px);
       flex-shrink:0;
@@ -474,7 +475,7 @@
 
     /* ── Landscape (any phone rotated) ── */
     @media (orientation:landscape) and (max-height:500px){
-      .nav{padding-top:4px;padding-bottom:4px;padding-bottom:max(4px,env(safe-area-inset-bottom,0px));}
+      .nav{padding-top:4px;padding-bottom:4px;padding-bottom:max(4px,min(env(safe-area-inset-bottom,0px),44px));}
       .nav-label{display:none;}
       .nav-item{padding:2px 0;}
       .app-hd{padding-top:8px;padding-top:max(8px,calc(env(safe-area-inset-top,0px) + 2px));padding-bottom:4px;}
