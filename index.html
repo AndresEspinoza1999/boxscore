@@ -78,14 +78,15 @@
     .btn-full{width:100%;}
 
     /* ── BOTTOM NAV ── */
-    /* home-indicator phones: sat≈34px; notch phones: sat≈34px; flat phones: sat≈0 */
+    /* Use env() directly — var(--sab) can fail to resolve in Safari */
     .nav{
       display:flex;
       background:var(--s1);
       border-top:1px solid var(--border);
-      padding:8px 0 max(16px,var(--sab));
-      padding-left:var(--sal);
-      padding-right:var(--sar);
+      padding-top:8px;
+      padding-bottom:max(20px,env(safe-area-inset-bottom));
+      padding-left:env(safe-area-inset-left);
+      padding-right:env(safe-area-inset-right);
       flex-shrink:0;
     }
     .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;}
@@ -269,7 +270,7 @@
     /* sits above the nav bar + home indicator */
     .toast{
       position:fixed;
-      bottom:calc(max(56px,var(--sab)) + 52px);
+      bottom:calc(max(56px,env(safe-area-inset-bottom)) + 52px);
       left:50%;transform:translateX(-50%);
       background:var(--s3);border:1px solid var(--border);
       color:var(--text);padding:10px 20px;border-radius:24px;
