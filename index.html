@@ -25,24 +25,69 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    :root{--bg:#0a0a0f;--s1:#111118;--s2:#18181f;--s3:#202028;--border:rgba(255,255,255,0.07);--text:#f0f0f5;--text2:#9898a8;--text3:#55555f;--accent:#f0bf3d;--red:#ff453a;--green:#30d158;--blue:#0a84ff;}
+    /* ── DESIGN TOKENS ── */
+    :root{
+      --bg:#0a0a0f;--s1:#111118;--s2:#18181f;--s3:#202028;
+      --border:rgba(255,255,255,0.07);
+      --text:#f0f0f5;--text2:#9898a8;--text3:#55555f;
+      --accent:#f0bf3d;--red:#ff453a;--green:#30d158;--blue:#0a84ff;
+      /* Safe-area shorthands */
+      --sat:env(safe-area-inset-top);
+      --sar:env(safe-area-inset-right);
+      --sab:env(safe-area-inset-bottom);
+      --sal:env(safe-area-inset-left);
+    }
+
+    /* ── RESET & BASE ── */
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-    html,body,#root{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;}
+    html{
+      height:100%;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+      overscroll-behavior:none;
+    }
+    body{
+      height:100%;
+      background:var(--bg);
+      color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;
+      -webkit-font-smoothing:antialiased;
+      overscroll-behavior:none;
+      touch-action:manipulation;
+    }
+    #root{
+      height:100%;
+      /* Cap width so it stays phone-shaped on large screens */
+      max-width:430px;
+      margin:0 auto;
+      position:relative;
+    }
     input,textarea,button,select{font-family:inherit;font-size:15px;outline:none;}
     input,textarea,select{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:11px 14px;width:100%;transition:border 0.15s;}
     input:focus,textarea:focus,select:focus{border-color:var(--accent);}
     textarea{resize:vertical;min-height:80px;}
     select{appearance:none;-webkit-appearance:none;}
     button{cursor:pointer;}
-    /* BUTTONS */
+
+    /* ── BUTTONS ── */
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;padding:12px 20px;font-weight:700;font-size:15px;transition:opacity 0.15s,transform 0.1s;cursor:pointer;}
     .btn:active{transform:scale(0.97);}
     .btn-primary{background:var(--accent);color:#000;}
     .btn-ghost{background:var(--s3);color:var(--text);border:1.5px solid var(--border);}
     .btn-sm{padding:7px 14px;font-size:13px;border-radius:9px;}
     .btn-full{width:100%;}
-    /* NAV */
-    .nav{display:flex;background:var(--s1);border-top:1px solid var(--border);padding:8px 0 max(12px,env(safe-area-inset-bottom));flex-shrink:0;}
+
+    /* ── BOTTOM NAV ── */
+    /* home-indicator phones: sat≈34px; notch phones: sat≈34px; flat phones: sat≈0 */
+    .nav{
+      display:flex;
+      background:var(--s1);
+      border-top:1px solid var(--border);
+      padding:8px 0 max(16px,var(--sab));
+      padding-left:var(--sal);
+      padding-right:var(--sar);
+      flex-shrink:0;
+    }
     .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;}
     .nav-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;}
     .nav-icon svg{width:24px;height:24px;color:var(--text3);transition:color 0.15s;}
@@ -50,36 +95,63 @@
     .nav-label{font-size:10px;color:var(--text3);font-weight:500;transition:color 0.15s;}
     .nav-item.active .nav-label{color:var(--accent);}
     .nav-add-btn{width:48px;height:32px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#000;}
-    /* PAGE */
-    .page{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-    /* APP HEADER */
-    .app-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px;}
+
+    /* ── PAGE SCROLL CONTAINER ── */
+    .page{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+
+    /* ── APP HEADER (Home/Search/Friends/Profile top bar) ── */
+    /* Pushes content below notch / Dynamic Island */
+    .app-hd{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:max(16px,calc(var(--sat) + 6px)) 16px 8px;
+    }
     .app-logo{display:inline-flex;align-items:center;gap:7px;font-size:26px;font-weight:900;letter-spacing:-0.5px;}
     .app-sub{font-size:12px;color:var(--text3);}
-    /* SECTION */
+
+    /* ── DETAIL / GAME / LIST HEADER ── */
+    /* back-button row on pages that slide in from the right */
+    .detail-hd{
+      padding:max(12px,calc(var(--sat) + 4px)) 16px 0;
+      display:flex;align-items:center;gap:8px;
+    }
+    .back-btn{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;padding:6px 0;}
+
+    /* ── SEARCH HEADER ── */
+    .search-hd{
+      padding:max(16px,calc(var(--sat) + 6px)) 16px 4px;
+      background:var(--s1);border-bottom:1px solid var(--border);
+    }
+    .search-input{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:10px 14px;width:100%;font-size:14px;}
+    .search-input:focus{border-color:var(--accent);}
+
+    /* ── SECTION ── */
     .section-hd{display:flex;align-items:center;gap:8px;padding:12px 16px 8px;}
     .section-title{font-size:17px;font-weight:800;letter-spacing:-0.3px;}
     .section-count{background:var(--s3);border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:var(--text3);}
-    /* LIVE */
+
+    /* ── LIVE ── */
     .live-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,69,58,0.15);color:var(--red);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;letter-spacing:0.3px;}
     .live-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;animation:pulse 1.4s infinite;}
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
     .status-chip{background:var(--s3);color:var(--text2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;}
     .status-chip.live{background:rgba(255,69,58,0.15);color:var(--red);}
-    /* SPORT PILLS */
+
+    /* ── SPORT PILLS ── */
     .sport-scroll{display:flex;gap:7px;overflow-x:auto;padding:10px 16px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
     .sport-scroll::-webkit-scrollbar{display:none;}
     .s-pill{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--text3);border:1.5px solid var(--border);transition:all 0.15s;flex-shrink:0;}
     .s-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));}
     .s-dot{width:7px;height:7px;border-radius:50%;background:var(--sport-c,var(--accent));flex-shrink:0;}
-    /* SPORT COLORS */
+
+    /* ── SPORT COLORS & BADGES ── */
     .sc-all{--sport-c:#f0bf3d;} .sc-nba{--sport-c:#ff6b35;} .sc-nfl{--sport-c:#4895ef;} .sc-mlb{--sport-c:#e5383b;} .sc-nhl{--sport-c:#00c3ff;} .sc-soccer{--sport-c:#47d98e;} .sc-epl{--sport-c:#7b2fbe;} .sc-laliga{--sport-c:#ee8707;} .sc-ucl{--sport-c:#3d6fd4;} .sc-seriea{--sport-c:#00529a;} .sc-bundesliga{--sport-c:#d3010c;} .sc-ligue1{--sport-c:#dba111;} .sc-mls{--sport-c:#002f6c;}
-    /* SPORT BADGE */
     .sport-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;background:color-mix(in srgb,var(--sport-c,var(--accent)) 15%,transparent);color:var(--sport-c,var(--accent));}
-    /* STRIP */
+
+    /* ── HORIZONTAL STRIP ── */
     .h-strip{display:flex;gap:10px;overflow-x:auto;padding:0 16px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
     .h-strip::-webkit-scrollbar{display:none;}
-    /* MINI CARD */
+
+    /* ── MINI CARD ── */
     .mini-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:12px;cursor:pointer;min-width:150px;flex-shrink:0;transition:background 0.12s;border-left:3px solid var(--sport-c,var(--accent));}
     .mini-card:active{background:var(--s3);}
     .mini-badge{font-size:10px;font-weight:700;color:var(--sport-c,var(--text3));margin-bottom:8px;}
@@ -88,7 +160,8 @@
     .mini-score{font-size:14px;font-weight:900;margin-left:auto;}
     .mini-footer{display:flex;align-items:center;justify-content:space-between;margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
     .mini-date{font-size:10px;color:var(--text3);}
-    /* GAME CARD */
+
+    /* ── GAME CARD ── */
     .game-card{background:var(--s2);border:1px solid var(--border);border-radius:16px;overflow:hidden;cursor:pointer;transition:background 0.12s;flex-shrink:0;}
     .game-card:active{background:var(--s3);}
     .gc-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border);}
@@ -106,7 +179,8 @@
     .gc-foot{display:flex;align-items:center;justify-content:space-between;padding:8px 14px 10px;border-top:1px solid var(--border);}
     .gc-avg{font-size:12px;font-weight:700;color:var(--accent);}
     .gc-cnt{font-size:11px;color:var(--text3);}
-    /* HERO CARD */
+
+    /* ── HERO CARD ── */
     .hero-card{background:var(--s2);border:1px solid var(--border);border-radius:20px;margin:0 16px;overflow:hidden;cursor:pointer;transition:box-shadow 0.3s;}
     .hero-card--live{border-color:rgba(255,69,58,0.55);box-shadow:0 0 0 1px rgba(255,69,58,0.2),0 4px 24px rgba(255,69,58,0.18);animation:live-glow 2.4s ease-in-out infinite;}
     @keyframes live-glow{0%,100%{box-shadow:0 0 0 1px rgba(255,69,58,0.2),0 4px 24px rgba(255,69,58,0.18);}50%{box-shadow:0 0 0 1px rgba(255,69,58,0.35),0 4px 32px rgba(255,69,58,0.32);}}
@@ -115,7 +189,7 @@
     .ob-slide{animation:ob-in 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both;}
     .ob-slide-back{animation:ob-in-back 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both;}
     .ob-emoji-glow{transition:filter 0.4s ease,transform 0.4s ease;}
-    .ob-tip{background:var(--s2);border:1.5px solid var(--border);border-radius:14px;padding:12px 16px;font-size:14px;color:var(--text);font-weight:500;text-align:left;line-height:1.4;display:flex;align-items:center;gap:10;}
+    .ob-tip{background:var(--s2);border:1.5px solid var(--border);border-radius:14px;padding:12px 16px;font-size:14px;color:var(--text);font-weight:500;text-align:left;line-height:1.4;display:flex;align-items:center;gap:10px;}
     .ob-tip-icon{font-size:20px;flex-shrink:0;width:28px;text-align:center;}
     .hero-card-top{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--border);}
     .hero-badge{font-size:12px;font-weight:700;color:var(--sport-c,var(--accent));}
@@ -130,34 +204,37 @@
     .hero-vs{font-size:18px;font-weight:700;color:var(--text3);padding:0 8px;}
     .hero-card-bot{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 14px;}
     .hero-venue{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    /* STARS */
+
+    /* ── STARS ── */
     .stars{display:inline-flex;gap:1px;line-height:1;}
     .star-f{color:var(--accent);}
     .star-e{color:var(--s3);}
     .star-picker{display:flex;justify-content:center;gap:8px;margin-bottom:4px;}
     .star-pick{font-size:36px;cursor:pointer;transition:transform 0.1s;}
     .star-pick:active{transform:scale(1.2);}
-    /* LIKE */
+
+    /* ── LIKE ── */
     .like-btn{background:none;border:none;display:inline-flex;align-items:center;gap:5px;color:var(--text3);font-size:12px;padding:4px 0;cursor:pointer;margin-top:6px;font-weight:600;transition:color 0.15s;}
     .like-btn svg{width:14px;height:14px;}
     .like-btn.liked{color:var(--red);}
-    /* REVIEW */
+
+    /* ── REVIEW ── */
     .review-card{background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;}
     .review-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;}
     .reviewer-name{font-size:14px;font-weight:700;margin-bottom:3px;}
     .review-body{font-size:14px;color:var(--text2);line-height:1.55;margin-top:5px;}
     .review-date{font-size:11px;color:var(--text3);}
     .review-video-link{display:inline-block;margin-top:8px;font-size:12px;color:var(--accent);text-decoration:none;}
-    /* VIDEO */
+
+    /* ── VIDEO ── */
     .vid-thumb{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;margin-bottom:8px;aspect-ratio:16/9;}
     .vid-thumb img{width:100%;height:100%;object-fit:cover;}
     .vid-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:36px;background:rgba(0,0,0,0.4);}
     .vid-label{position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:linear-gradient(transparent,rgba(0,0,0,0.7));font-size:12px;font-weight:600;}
     .vid-embed{border-radius:12px;overflow:hidden;aspect-ratio:16/9;margin-bottom:8px;}
     .vid-embed iframe{width:100%;height:100%;border:none;}
-    /* DETAIL */
-    .detail-hd{padding:12px 16px 0;display:flex;align-items:center;gap:8px;}
-    .back-btn{display:inline-flex;align-items:center;gap:5px;font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;padding:6px 0;}
+
+    /* ── GAME DETAIL MATCHUP ── */
     .detail-sport-bar{padding:12px 16px 14px;border-bottom:1px solid var(--border);}
     .detail-matchup{display:flex;align-items:center;justify-content:space-between;padding:24px 20px;}
     .detail-team-col{display:flex;flex-direction:column;align-items:center;flex:1;}
@@ -166,10 +243,8 @@
     .detail-score-mid{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;padding:0 12px;}
     .detail-score{font-size:34px;font-weight:900;letter-spacing:-1.5px;}
     .detail-vs{font-size:20px;font-weight:700;color:var(--text3);}
-    /* SEARCH */
-    .search-hd{padding:16px 16px 4px;background:var(--s1);border-bottom:1px solid var(--border);}
-    .search-input{background:var(--s3);border:1.5px solid var(--border);border-radius:12px;color:var(--text);padding:10px 14px;width:100%;font-size:14px;}
-    .search-input:focus{border-color:var(--accent);}
+
+    /* ── SEARCH FILTERS ── */
     .f-pill{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--s2);color:var(--text3);border:1.5px solid var(--border);transition:all 0.15s;flex-shrink:0;}
     .f-pill.active{background:color-mix(in srgb,var(--sport-c,var(--accent)) 18%,transparent);border-color:var(--sport-c,var(--accent));color:var(--sport-c,var(--accent));}
     .team-ac-wrap{position:relative;}
@@ -178,37 +253,67 @@
     .ac-item{padding:10px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background 0.1s;}
     .ac-item:hover{background:var(--s3);}
     .ac-item mark{background:none;color:var(--accent);font-weight:700;}
-    /* OVERLAY / SHEET */
+
+    /* ── OVERLAY / BOTTOM SHEET ── */
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:flex;align-items:flex-end;}
-    .sheet{background:var(--s1);border-radius:24px 24px 0 0;padding:16px 16px max(32px,env(safe-area-inset-bottom));width:100%;max-height:92dvh;overflow-y:auto;}
+    .sheet{
+      background:var(--s1);border-radius:24px 24px 0 0;
+      padding:16px 16px max(32px,var(--sab));
+      width:100%;max-height:92dvh;overflow-y:auto;
+      /* prevent sheet from going into left/right safe areas on landscape */
+      padding-left:max(16px,var(--sal));
+      padding-right:max(16px,var(--sar));
+    }
     .sheet-handle{width:36px;height:4px;background:var(--s3);border-radius:2px;margin:0 auto 16px;}
-    /* TOAST */
-    .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--border);color:var(--text);padding:10px 20px;border-radius:24px;font-size:14px;font-weight:600;z-index:200;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,0.6);}
-    /* SPINNER */
+
+    /* ── TOAST ── */
+    /* sits above the nav bar + home indicator */
+    .toast{
+      position:fixed;
+      bottom:calc(max(56px,var(--sab)) + 52px);
+      left:50%;transform:translateX(-50%);
+      background:var(--s3);border:1px solid var(--border);
+      color:var(--text);padding:10px 20px;border-radius:24px;
+      font-size:14px;font-weight:600;z-index:200;
+      white-space:nowrap;max-width:calc(100vw - 32px);
+      box-shadow:0 8px 32px rgba(0,0,0,0.6);
+    }
+
+    /* ── SPINNER ── */
     .spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg);}}
-    /* EMPTY */
+
+    /* ── EMPTY STATE ── */
     .empty{text-align:center;padding:48px 24px;color:var(--text3);}
     .empty-icon{font-size:36px;margin-bottom:12px;}
     .empty p{font-size:14px;line-height:1.5;}
-    /* GAP STACK */
+
+    /* ── LAYOUT HELPERS ── */
     .gap-stack{display:flex;flex-direction:column;gap:10px;}
-    /* ACTIVITY */
+
+    /* ── ACTIVITY ── */
     .activity-row{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;}
     .activity-row:last-child{border-bottom:none;}
     .activity-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;}
-    /* PROFILE */
-    .profile-hd{padding:24px 16px 16px;text-align:center;border-bottom:1px solid var(--border);}
+
+    /* ── PROFILE ── */
+    .profile-hd{
+      /* Extra top padding for status bar / notch / DI */
+      padding:max(24px,calc(var(--sat) + 12px)) 16px 16px;
+      text-align:center;border-bottom:1px solid var(--border);
+    }
     .avatar{width:64px;height:64px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;margin:0 auto 10px;}
     .profile-name{font-size:22px;font-weight:800;letter-spacing:-0.5px;}
     .profile-stats{display:flex;justify-content:center;gap:28px;margin:14px 0 10px;}
     .stat-num{font-size:20px;font-weight:900;text-align:center;}
     .stat-lbl{font-size:11px;color:var(--text3);text-align:center;margin-top:2px;}
-    /* TABS */
-    .tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 16px;}
-    .tab-item{flex:1;text-align:center;padding:12px;font-size:13px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;}
+
+    /* ── TABS ── */
+    .tab-bar{display:flex;border-bottom:1px solid var(--border);padding:0 8px;}
+    .tab-item{flex:1;text-align:center;padding:11px 4px;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
     .tab-item.active{color:var(--accent);border-bottom-color:var(--accent);}
-    /* LEADERBOARD */
+
+    /* ── LEADERBOARD ── */
     .lb-row{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--border);border-radius:14px;padding:14px;cursor:pointer;transition:background 0.12s;}
     .lb-row:active{background:var(--s3);}
     .lb-rank{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
@@ -219,16 +324,23 @@
     .lb-right{text-align:right;flex-shrink:0;}
     .lb-avg{font-size:18px;font-weight:900;color:var(--accent);}
     .lb-cnt{font-size:11px;color:var(--text3);}
-    /* ONBOARDING */
-    .onboard-wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;background:var(--bg);}
+
+    /* ── ONBOARDING ── */
+    .onboard-wrap{
+      min-height:100dvh;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      padding:max(32px,calc(var(--sat)+16px)) 24px max(32px,calc(var(--sab)+16px));
+      background:var(--bg);
+    }
     .onboard-logo{display:flex;align-items:center;justify-content:center;gap:10px;font-size:36px;font-weight:900;letter-spacing:-0.5px;margin-bottom:4px;}
     .onboard-sub{font-size:15px;color:var(--text3);margin-bottom:40px;}
     .onboard-card{background:var(--s2);border:1px solid var(--border);border-radius:24px;padding:28px 24px;width:100%;max-width:400px;}
     .onboard-q{font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:6px;}
     .onboard-hint{font-size:14px;color:var(--text3);margin-bottom:24px;}
-    /* MISC */
+
+    /* ── MISC ── */
     .tag-chip{background:var(--s3);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text3);}
-    .wl-btn{background:var(--s3);border:1.5px solid var(--border);color:var(--text2);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;}
+    .wl-btn{background:var(--s3);border:1.5px solid var(--border);color:var(--text2);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
     .wl-btn.saved{background:color-mix(in srgb,var(--accent) 15%,transparent);border-color:var(--accent);color:var(--accent);}
     .t-micro{font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--text3);}
     .sport-tile{display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:12px;cursor:pointer;background:var(--s3);border:1.5px solid var(--border);gap:4px;transition:all 0.15s;}
@@ -237,6 +349,118 @@
     .sport-tile.active .t-nm{color:var(--sport-c,var(--accent));}
     .api-game-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:background 0.12s;}
     .api-game-row:active{background:var(--s3);}
+
+    /* ════════════════════════════════════════════════════════
+       RESPONSIVE — iPhone form factors
+       ════════════════════════════════════════════════════════
+
+       SE 1st gen      320 × 568   no notch  no home-bar
+       SE 2nd/3rd gen  375 × 667   no notch  no home-bar
+       6 / 7 / 8       375 × 667   no notch  no home-bar
+       6+/ 7+/ 8+      414 × 736   no notch  no home-bar
+       X / XS / 11 Pro 375 × 812   notch     home-bar
+       XR / 11         414 × 896   notch     home-bar
+       12 mini/13 mini 375 × 812   notch     home-bar
+       12 / 13 / 14    390 × 844   notch     home-bar
+       14 Plus         428 × 926   notch     home-bar
+       14 Pro          393 × 852   DynamicIs home-bar
+       14 Pro Max      430 × 932   DynamicIs home-bar
+       15 / 15 Plus    393 × 852   DynamicIs home-bar
+       15 Pro          393 × 852   DynamicIs home-bar
+       15 Pro Max      430 × 932   DynamicIs home-bar
+       16 / 16 Plus    393 × 852   DynamicIs home-bar
+       16 Pro          402 × 874   DynamicIs home-bar
+       16 Pro Max      440 × 956   DynamicIs home-bar
+    ════════════════════════════════════════════════════════ */
+
+    /* ── SE 1st gen & very small (≤320px) ── */
+    @media (max-width:320px){
+      .app-logo{font-size:20px;}
+      .section-title{font-size:14px;}
+      .app-hd{padding-left:12px;padding-right:12px;}
+      .section-hd{padding:10px 12px 6px;}
+      .profile-stats{gap:12px;}
+      .stat-num{font-size:16px;}
+      .stat-lbl{font-size:10px;}
+      .hero-abbr{font-size:17px;}
+      .hero-score{font-size:24px;}
+      .hero-matchup{padding:12px;}
+      .detail-team-abbr{font-size:20px;}
+      .detail-score{font-size:26px;}
+      .detail-matchup{padding:16px 12px;}
+      .mini-card{min-width:120px;}
+      .star-pick{font-size:28px;gap:4px;}
+      .onboard-card{padding:18px 14px;}
+      .onboard-q{font-size:18px;}
+      .onboard-sub{margin-bottom:28px;}
+      .btn{padding:10px 14px;font-size:14px;}
+      .btn-sm{padding:6px 10px;font-size:12px;}
+      .tab-item{font-size:10px;padding:9px 2px;}
+      .nav-label{font-size:9px;}
+      .wl-btn{padding:4px 8px;font-size:10px;}
+      .review-card{padding:12px;}
+      .lb-row{padding:10px 12px;gap:8px;}
+      .lb-avg{font-size:16px;}
+    }
+
+    /* ── SE 2nd/3rd + 6/7/8 (321–375px) ── */
+    @media (min-width:321px) and (max-width:375px){
+      .app-logo{font-size:23px;}
+      .hero-abbr{font-size:19px;}
+      .hero-score{font-size:28px;}
+      .detail-team-abbr{font-size:23px;}
+      .detail-score{font-size:30px;}
+      .profile-stats{gap:18px;}
+      .stat-num{font-size:18px;}
+      .mini-card{min-width:135px;}
+      .star-pick{font-size:32px;}
+      .wl-btn{padding:5px 10px;font-size:11px;}
+      .tab-item{font-size:11px;padding:10px 2px;}
+    }
+
+    /* ── Standard (376–393px) — 12/13/14, 14 Pro, 15, 16 ── */
+    /* These are the default styles; nothing extra needed */
+
+    /* ── Plus / Max / Pro Max (394px+) ── */
+    @media (min-width:394px){
+      .app-logo{font-size:27px;}
+      .hero-abbr{font-size:24px;}
+      .hero-score{font-size:36px;}
+      .hero-matchup{padding:24px 20px;}
+      .detail-team-abbr{font-size:29px;}
+      .detail-score{font-size:38px;}
+      .detail-matchup{padding:28px 24px;}
+      .mini-card{min-width:165px;}
+      .section-title{font-size:18px;}
+      .profile-stats{gap:32px;}
+      .stat-num{font-size:22px;}
+      .gc-fullname{font-size:15px;}
+      .gc-score{font-size:17px;}
+      .lb-avg{font-size:20px;}
+      .lb-teams{font-size:15px;}
+    }
+
+    /* ── Landscape (any iPhone rotated) ── */
+    @media (orientation:landscape) and (max-height:500px){
+      .nav{padding-top:4px;padding-bottom:max(4px,var(--sab));}
+      .nav-label{display:none;}
+      .nav-item{padding:2px 0;}
+      .app-hd{padding-top:max(8px,calc(var(--sat)+2px));padding-bottom:4px;}
+      .hero-matchup{padding:12px 16px;}
+      .hero-score{font-size:28px;}
+      .detail-matchup{padding:12px 20px;}
+      .detail-score{font-size:28px;}
+      .profile-hd{padding-top:max(12px,calc(var(--sat)+6px));}
+      .onboard-wrap{padding-top:max(16px,calc(var(--sat)+8px));justify-content:flex-start;overflow-y:auto;}
+    }
+
+    /* ── High-resolution displays (Retina) ── */
+    /* Ensure borders stay crisp at 2×/3× */
+    @media (-webkit-min-device-pixel-ratio:2),(min-resolution:192dpi){
+      .game-card,.mini-card,.review-card,.lb-row{border-width:0.5px;}
+      .nav{border-top-width:0.5px;}
+      .tab-bar{border-bottom-width:0.5px;}
+    }
   </style>
 </head>
 <body>
