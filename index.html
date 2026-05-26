@@ -2178,27 +2178,17 @@ function App() {
   }),[games,reviews,likes,watchlist,follows,blocks,notifications,session,profile]);
 
   const ensureGameInDb = async(g, uid) => {
-    // Pass 1: full column set (no api_id — not in schema)
-    const full = {
+    // Only columns that actually exist in the games table schema
+    const row = {
       id:g.id, sport:g.sport, league:g.league||g.sport,
       home:g.home, away:g.away,
       home_score:g.homeScore??null, away_score:g.awayScore??null,
       date:g.date||'', venue:g.venue||'', description:g.description||'',
-      video_url:'', tags:g.tags||[],
-      home_team_id:g.homeTeamId||null, away_team_id:g.awayTeamId||null,
-      series_info:g.seriesInfo||null, series_type:g.seriesType||null,
-      home_series_wins:g.homeSeriesWins??null, away_series_wins:g.awaySeriesWins??null,
-      is_playoff:g.isPlayoff||false, created_by:uid
+      video_url:'', tags:g.tags||[], created_by:uid
     };
-    const {error:e1} = await sb.from('games').upsert(full,{onConflict:'id'});
-    if(!e1) return {ok:true};
-    // Pass 2: minimal safe columns only
-    console.warn('[ensureGameInDb] full upsert failed, trying minimal:',e1.message);
-    const minimal = {id:g.id, sport:g.sport, home:g.home, away:g.away, date:g.date||''};
-    const {error:e2} = await sb.from('games').upsert(minimal,{onConflict:'id'});
-    if(!e2) return {ok:true};
-    console.error('[ensureGameInDb] minimal upsert also failed',e2);
-    return {ok:false,error:e2.message||e2.code||String(e2)};
+    const {error} = await sb.from('games').upsert(row,{onConflict:'id'});
+    if(error){console.error('[ensureGameInDb] error',error);return {ok:false,error:error.message||error.code||String(error)};}
+    return {ok:true};
   };
 
   const dispatch = useCallback(async(action)=>{
@@ -2218,11 +2208,11 @@ function App() {
         let saveErr;
         if(existing?.id){
           console.log('[ADD_REVIEW] updating existing review',existing.id);
-          const {error} = await sb.from('reviews').update({username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]}).eq('id',existing.id);
+          const {error} = await sb.from('reviews').update({username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||''}).eq('id',existing.id);
           saveErr=error;
         } else {
           console.log('[ADD_REVIEW] inserting new review');
-          const {error} = await sb.from('reviews').insert({game_id:r.gameId,user_id:uid,username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||'',players:r.players||[]});
+          const {error} = await sb.from('reviews').insert({game_id:r.gameId,user_id:uid,username:uname,rating:r.rating,body:r.text,video_url:r.videoUrl||''});
           saveErr=error;
         }
         if(saveErr){console.error('[ADD_REVIEW] save error',saveErr);return {ok:false,error:saveErr.message||saveErr.code||String(saveErr)};}
