@@ -365,6 +365,8 @@ const normalizeReview = r => ({
   date:r.created_at ? r.created_at.split('T')[0] : '',
 });
 const normalizeNotif = n => ({id:n.id,type:n.type,fromUserId:n.from_user_id,fromUsername:n.from_username||'',gameId:n.game_id,reviewId:n.review_id,read:n.read,date:n.created_at});
+const normalizeList = l => ({id:l.id,userId:l.user_id,username:l.username||'',name:l.name,description:l.description||'',isPublic:l.is_public!==false,createdAt:l.created_at});
+const normalizeListItem = li => ({id:li.id,listId:li.list_id,gameId:li.game_id,position:li.position||0});
 
 /* ── ESPN API ── */
 const SPORT_PARENT = {nba:'nba',nfl:'nfl',mlb:'mlb',nhl:'nhl',mls:'soccer',epl:'soccer',laliga:'soccer',ucl:'soccer',seriea:'soccer',bundesliga:'soccer',ligue1:'soccer'};
@@ -1246,6 +1248,7 @@ function SeriesEditor({ game, onSave, onClose }) {
 function GamePage({ gameId, state, dispatch, navigate, showToast }) {
   const [showReview,setShowReview]=useState(false);
   const [showSeriesEditor,setShowSeriesEditor]=useState(false);
+  const [showAddToList,setShowAddToList]=useState(false);
   const [reviewSort,setReviewSort]=useState('recent');
   const [showVidIdx,setShowVidIdx]=useState(null);
   const _dbGame=state.games.find(g=>g.id===gameId);
@@ -1284,7 +1287,10 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
         </div>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           {avg>0?<div style={{display:'flex',alignItems:'center',gap:6}}><Stars rating={avg} size={14}/><span style={{fontSize:13,color:'var(--text2)',fontWeight:600}}>{avg.toFixed(1)} ({reviews.length})</span></div>:<span style={{fontSize:12,color:'var(--text3)'}}>No reviews yet</span>}
-          <button className={`wl-btn${inWL?' saved':''}`} onClick={toggleWL}>{inWL?'✓ Saved':'☆ Save'}</button>
+          <div style={{display:'flex',gap:6}}>
+            <button className="wl-btn" onClick={()=>setShowAddToList(true)}>📋 List</button>
+            <button className={`wl-btn${inWL?' saved':''}`} onClick={toggleWL}>{inWL?'✓ Saved':'☆ Save'}</button>
+          </div>
         </div>
       </div>
       <div className="detail-matchup">
@@ -1417,6 +1423,7 @@ function GamePage({ gameId, state, dispatch, navigate, showToast }) {
       </div>
       {showReview&&<ReviewSheet game={game} existing={myReview} onClose={()=>setShowReview(false)} onSubmit={submitReview}/>}
       {showSeriesEditor&&<SeriesEditor game={game} onSave={saveSeries} onClose={()=>setShowSeriesEditor(false)}/>}
+      {showAddToList&&<AddToListModal gameId={gameId} state={state} dispatch={dispatch} showToast={showToast} onClose={()=>setShowAddToList(false)}/>}
     </div>
   );
 }
@@ -1670,9 +1677,12 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
   const [nameVal,setNameVal]=useState(state.currentUser.name);
   const [bioVal, setBioVal] = useState(state.profile?.bio||'');
   const [avatarVal, setAvatarVal] = useState(state.profile?.avatar_url||'');
+  const [showCreateList,setShowCreateList]=useState(false);
   const myReviews=state.reviews.filter(r=>r.userId===state.currentUser.id);
   const allGames=[...state.games,...(state.apiGames||[])].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i);
   const watchGames=allGames.filter(g=>state.watchlist.includes(g.id));
+  const myLists=(state.lists||[]).filter(l=>l.userId===state.currentUser.id);
+  const listItems=state.listItems||[];
   const avgMine=myReviews.length?(myReviews.reduce((a,b)=>a+b.rating,0)/myReviews.length).toFixed(1):'—';
   const followingCount=(state.follows||[]).filter(f=>f.follower_id===state.currentUser.id).length;
   const saveProfile=()=>{
@@ -1710,11 +1720,195 @@ function ProfilePage({ state, dispatch, navigate, showToast, onSignOut }) {
         </div>
         <button className="btn btn-ghost btn-sm" style={{margin:'8px auto 16px',display:'flex'}} onClick={onSignOut}>Sign Out</button>
       </div>
-      <div className="tab-bar">{[['reviews',`Reviews (${myReviews.length})`],['saved',`Saved (${watchGames.length})`]].map(([id,lbl])=><div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>)}</div>
+      <div className="tab-bar">{[['reviews',`Reviews (${myReviews.length})`],['saved',`Saved (${watchGames.length})`],['lists',`Lists (${myLists.length})`]].map(([id,lbl])=><div key={id} className={`tab-item${tab===id?' active':''}`} onClick={()=>setTab(id)}>{lbl}</div>)}</div>
       <div style={{padding:'16px'}} className="gap-stack">
         {tab==='reviews'?myReviews.length===0?<div className="empty"><div className="empty-icon">📝</div><p>No reviews yet — go rate a game!</p></div>:myReviews.map(r=>{const g=allGames.find(x=>x.id===r.gameId);return(<div key={r.id} className="review-card" style={{cursor:'pointer'}} onClick={()=>navigate('game',{gameId:r.gameId})}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}><div style={{fontSize:13,fontWeight:800}}>{g?`${abbr(g.away)} vs ${abbr(g.home)}`:'Game Review'}</div>{g&&<span className={`sport-badge sc-${g.sport}`} style={{['--sport-c']:getSportColor(g.sport)}}>{getSportMeta(g.sport).emoji} {getSportMeta(g.sport).label}</span>}</div><Stars rating={r.rating} size={13}/>{r.text?<p className="review-body" style={{marginTop:8}}>{r.text}</p>:null}<div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>{formatDate(r.date)}</div></div>);})
-        :watchGames.length===0?<div className="empty"><div className="empty-icon">⭐</div><p>No saved games yet.<br/>Tap ☆ Save on any game.</p></div>:watchGames.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)}
+        :tab==='saved'?watchGames.length===0?<div className="empty"><div className="empty-icon">⭐</div><p>No saved games yet.<br/>Tap ☆ Save on any game.</p></div>:watchGames.map(g=><GameCard key={g.id} game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>)
+        :(
+          <>
+            <button className="btn btn-ghost btn-full" style={{marginBottom:4}} onClick={()=>setShowCreateList(true)}>+ New List</button>
+            {myLists.length===0?<div className="empty"><div className="empty-icon">📋</div><p>No lists yet.<br/>Tap "📋 List" on any game to start.</p></div>
+            :myLists.map(list=>{
+              const items=listItems.filter(li=>li.listId===list.id);
+              const listGames=items.map(li=>allGames.find(g=>g.id===li.gameId)).filter(Boolean);
+              return(
+                <div key={list.id} onClick={()=>navigate('list',{listId:list.id})}
+                  style={{background:'var(--s2)',border:'1px solid var(--border)',borderRadius:14,padding:'14px',cursor:'pointer',transition:'background 0.12s'}}>
+                  <div style={{fontWeight:800,fontSize:15,marginBottom:2}}>{list.name}</div>
+                  {list.description&&<div style={{fontSize:13,color:'var(--text2)',marginBottom:6,lineHeight:1.4}}>{list.description}</div>}
+                  <div style={{fontSize:12,color:'var(--text3)',marginBottom:8}}>{items.length} game{items.length!==1?'s':''}</div>
+                  {listGames.length>0&&(
+                    <div style={{display:'flex',gap:5}}>
+                      {listGames.slice(0,5).map(g=>(
+                        <div key={g.id} style={{flex:1,maxWidth:56,height:36,background:getSportColor(g.sport)+'22',border:`1px solid ${getSportColor(g.sport)}44`,borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:800,color:getSportColor(g.sport),overflow:'hidden',textAlign:'center',lineHeight:1.1}}>
+                          {abbr(g.away)}<br/>vs<br/>{abbr(g.home)}
+                        </div>
+                      ))}
+                      {items.length>5&&<div style={{flex:1,maxWidth:56,height:36,background:'var(--s3)',borderRadius:8,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'var(--text3)'}}>+{items.length-5}</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
+      {showCreateList&&<CreateListModal onClose={()=>setShowCreateList(false)} onSave={async({name,description})=>{const list=await dispatch({type:'CREATE_LIST',name,description});setShowCreateList(false);if(list?.id){showToast('✓ List created!');navigate('list',{listId:list.id});}else showToast('❌ Could not create list');}}/>}
+    </div>
+  );
+}
+
+/* ── CREATE LIST MODAL ── */
+function CreateListModal({ onClose, onSave, initial }) {
+  const [name,setName]=useState(initial?.name||'');
+  const [desc,setDesc]=useState(initial?.description||'');
+  const [saving,setSaving]=useState(false);
+  const submit=async()=>{
+    if(!name.trim())return;
+    setSaving(true);
+    await onSave({name:name.trim(),description:desc.trim()});
+    setSaving(false);
+  };
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div style={{fontSize:17,fontWeight:800,marginBottom:16}}>{initial?'Edit List':'New List'}</div>
+        <div style={{display:'flex',flexDirection:'column',gap:12,paddingBottom:8}}>
+          <input placeholder="List name (e.g. NBA Classics, Best Playoffs…)" value={name} onChange={e=>setName(e.target.value)} maxLength={60} autoFocus/>
+          <textarea placeholder="Description (optional)" value={desc} onChange={e=>setDesc(e.target.value)} style={{height:72}} maxLength={200}/>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn btn-ghost" style={{flex:1}} onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" style={{flex:1}} onClick={submit} disabled={!name.trim()||saving}>{saving?'Saving…':initial?'Save Changes':'Create List'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ADD TO LIST MODAL ── */
+function AddToListModal({ gameId, state, dispatch, showToast, onClose }) {
+  const [showCreate,setShowCreate]=useState(false);
+  const [adding,setAdding]=useState(null);
+  const myLists=(state.lists||[]).filter(l=>l.userId===state.currentUser.id);
+  const listItems=state.listItems||[];
+
+  const addToList=async(listId)=>{
+    if(listItems.some(li=>li.listId===listId&&li.gameId===gameId)){showToast('Already in that list');return;}
+    setAdding(listId);
+    const ok=await dispatch({type:'ADD_TO_LIST',listId,gameId});
+    setAdding(null);
+    if(ok===true){showToast('✓ Added to list!');onClose();}
+    else showToast('❌ Could not add — check your connection');
+  };
+
+  const createAndAdd=async({name,description})=>{
+    const list=await dispatch({type:'CREATE_LIST',name,description});
+    if(list&&list.id){
+      await dispatch({type:'ADD_TO_LIST',listId:list.id,gameId});
+      showToast('✓ List created & game added!');
+      onClose();
+    } else {
+      showToast('❌ Could not create list');
+    }
+    setShowCreate(false);
+  };
+
+  if(showCreate) return <CreateListModal onClose={()=>setShowCreate(false)} onSave={createAndAdd}/>;
+
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="sheet">
+        <div className="sheet-handle"/>
+        <div style={{fontSize:17,fontWeight:800,marginBottom:14}}>Add to List</div>
+        <button className="btn btn-ghost btn-full" style={{marginBottom:14,justifyContent:'center'}} onClick={()=>setShowCreate(true)}>
+          + Create new list
+        </button>
+        {myLists.length===0?(
+          <div className="empty" style={{paddingBottom:24}}><p>Create a list above to get started!</p></div>
+        ):myLists.map(list=>{
+          const isIn=listItems.some(li=>li.listId===list.id&&li.gameId===gameId);
+          const cnt=listItems.filter(li=>li.listId===list.id).length;
+          return(
+            <div key={list.id} onClick={()=>!isIn&&!adding&&addToList(list.id)}
+              style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 4px',borderBottom:'1px solid var(--border)',cursor:isIn||adding?'default':'pointer',opacity:adding===list.id?0.5:1}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:14}}>{list.name}</div>
+                <div style={{fontSize:12,color:'var(--text3)',marginTop:2}}>{cnt} game{cnt!==1?'s':''}</div>
+              </div>
+              {isIn?<span style={{color:'var(--green)',fontSize:13,fontWeight:700}}>✓ Added</span>
+                :<span style={{color:'var(--accent)',fontSize:13,fontWeight:700}}>Add</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── LIST DETAIL PAGE ── */
+function ListDetailPage({ listId, state, dispatch, navigate, showToast }) {
+  const [editing,setEditing]=useState(false);
+  const list=(state.lists||[]).find(l=>l.id===listId);
+  const items=(state.listItems||[]).filter(li=>li.listId===listId);
+  const allGames=[...state.games,...(state.apiGames||[])].filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i);
+  const games=items.map(li=>allGames.find(g=>g.id===li.gameId)).filter(Boolean);
+  if(!list)return(
+    <div style={{padding:32,textAlign:'center',color:'var(--text3)'}}>
+      <div style={{fontSize:32,marginBottom:12}}>📋</div><p>List not found</p>
+      <button className="btn btn-ghost btn-sm" style={{margin:'12px auto 0',display:'flex'}} onClick={()=>navigate('profile')}>← Back</button>
+    </div>
+  );
+  const isOwner=list.userId===state.currentUser.id;
+  const deleteList=async()=>{
+    if(!window.confirm(`Delete "${list.name}"? This can't be undone.`))return;
+    await dispatch({type:'DELETE_LIST',listId});
+    showToast('List deleted');
+    navigate('profile');
+  };
+  const removeGame=async(gameId,e)=>{
+    e.stopPropagation();
+    await dispatch({type:'REMOVE_FROM_LIST',listId,gameId});
+    showToast('Removed from list');
+  };
+  return (
+    <div className="page">
+      <div className="detail-hd" style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div className="back-btn" onClick={()=>navigate('profile')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Back</div>
+        {isOwner&&<div style={{display:'flex',gap:8}}>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setEditing(true)}>✏️ Edit</button>
+          <button className="btn btn-ghost btn-sm" style={{color:'var(--red)'}} onClick={deleteList}>Delete</button>
+        </div>}
+      </div>
+      <div style={{padding:'0 16px 8px'}}>
+        <div style={{fontSize:22,fontWeight:900,lineHeight:1.2,marginBottom:6}}>{list.name}</div>
+        {list.description&&<div style={{fontSize:14,color:'var(--text2)',marginBottom:6,lineHeight:1.5}}>{list.description}</div>}
+        <div style={{fontSize:13,color:'var(--text3)'}}>by {list.username} · {games.length} game{games.length!==1?'s':''}</div>
+        {/* Mini sport breakdown */}
+        {games.length>0&&(()=>{
+          const byS={};games.forEach(g=>{byS[g.sport]=(byS[g.sport]||0)+1;});
+          return <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:8}}>{Object.entries(byS).map(([s,c])=><span key={s} className={`sport-badge sc-${s}`} style={{['--sport-c']:getSportColor(s)}}>{getSportMeta(s).emoji} {c}</span>)}</div>;
+        })()}
+      </div>
+      <div style={{height:1,background:'var(--border)',margin:'12px 0'}}/>
+      <div style={{padding:'0 16px 24px'}} className="gap-stack">
+        {games.length===0?(
+          <div className="empty" style={{paddingTop:24}}>
+            <div className="empty-icon">🎬</div>
+            <p>No games in this list yet.<br/>Tap <strong>📋 List</strong> on any game to add one.</p>
+          </div>
+        ):games.map(g=>(
+          <div key={g.id} style={{position:'relative'}}>
+            <GameCard game={g} reviews={state.reviews} onPress={()=>navigate('game',{gameId:g.id})}/>
+            {isOwner&&<button onClick={(e)=>removeGame(g.id,e)}
+              style={{position:'absolute',top:10,right:10,background:'var(--s3)',border:'1px solid var(--border)',color:'var(--text3)',borderRadius:8,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:'pointer'}}>
+              ✕ Remove
+            </button>}
+          </div>
+        ))}
+      </div>
+      {editing&&<CreateListModal initial={list} onClose={()=>setEditing(false)} onSave={async({name,description})=>{await dispatch({type:'UPDATE_LIST',listId,name,description});setEditing(false);showToast('✓ List updated');}}/>}
     </div>
   );
 }
@@ -2062,6 +2256,8 @@ function App() {
   const [follows,   setFollows]   = useState([]);
   const [blocks,    setBlocks]    = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [lists,     setLists]     = useState([]);
+  const [listItems, setListItems] = useState([]);
   const [loading,  setLoading]   = useState(true);
   const [apiGames, setApiGames]  = useState([]);
   const [apiLoading, setApiLoading] = useState(false);
@@ -2153,6 +2349,14 @@ function App() {
       if(extraIds.length){ const {data:pd}=await sb.from('profiles').select('id,username').in('id',extraIds); (pd||[]).forEach(p=>{pMap[p.id]=p.username;}); }
       setFollows(followData.map(f=>({...f,following_username:pMap[f.following_id]||''})));
       setBlocks(blockData.map(b=>({...b,blocked_username:pMap[b.blocked_id]||''})));
+      // Load user's lists and their game items
+      const {data:listsData} = await sb.from('lists').select('*').eq('user_id',userId).order('created_at',{ascending:false});
+      const myLists = listsData||[];
+      setLists(myLists.map(normalizeList));
+      if(myLists.length>0){
+        const {data:itemsData} = await sb.from('list_items').select('*').in('list_id',myLists.map(l=>l.id));
+        setListItems((itemsData||[]).map(normalizeListItem));
+      }
     } catch(e){ console.error('loadData error',e); }
     setLoading(false);
   },[]);
@@ -2173,9 +2377,11 @@ function App() {
     follows,
     blocks,
     notifications,
+    lists,
+    listItems,
     profile,
     currentUser: { id: session?.user?.id||'', name: profile?.username||'' },
-  }),[games,reviews,likes,watchlist,follows,blocks,notifications,session,profile]);
+  }),[games,reviews,likes,watchlist,follows,blocks,notifications,lists,listItems,session,profile]);
 
   const ensureGameInDb = async(g, uid) => {
     // Only columns that actually exist in the games table schema
@@ -2305,9 +2511,43 @@ function App() {
         setNotifications(prev=>prev.map(n=>({...n,read:true})));
         break;
       }
+      case 'CREATE_LIST': {
+        const uname = profile?.username || session?.user?.user_metadata?.username || `fan_${uid.slice(-4)}`;
+        const {data,error} = await sb.from('lists').insert({user_id:uid,username:uname,name:action.name,description:action.description||'',is_public:action.isPublic!==false}).select().single();
+        if(error){console.error('CREATE_LIST error',error);return false;}
+        const newList = normalizeList(data);
+        setLists(prev=>[newList,...prev]);
+        return newList;
+      }
+      case 'DELETE_LIST': {
+        await sb.from('lists').delete().eq('id',action.listId).eq('user_id',uid);
+        setLists(prev=>prev.filter(l=>l.id!==action.listId));
+        setListItems(prev=>prev.filter(li=>li.listId!==action.listId));
+        break;
+      }
+      case 'ADD_TO_LIST': {
+        // Ensure API games exist in DB first
+        const g = [...(state.games||[]),...(state.apiGames||[])].find(x=>x.id===action.gameId);
+        if(g?.fromApi) await ensureGameInDb(g,uid);
+        const {error} = await sb.from('list_items').insert({list_id:action.listId,game_id:action.gameId,position:0});
+        if(error){console.error('ADD_TO_LIST error',error);return false;}
+        const {data:fresh} = await sb.from('list_items').select('*').eq('list_id',action.listId);
+        if(fresh) setListItems(prev=>[...prev.filter(li=>li.listId!==action.listId),...fresh.map(normalizeListItem)]);
+        return true;
+      }
+      case 'REMOVE_FROM_LIST': {
+        await sb.from('list_items').delete().eq('list_id',action.listId).eq('game_id',action.gameId);
+        setListItems(prev=>prev.filter(li=>!(li.listId===action.listId&&li.gameId===action.gameId)));
+        break;
+      }
+      case 'UPDATE_LIST': {
+        const {error} = await sb.from('lists').update({name:action.name,description:action.description||''}).eq('id',action.listId).eq('user_id',uid);
+        if(!error) setLists(prev=>prev.map(l=>l.id===action.listId?{...l,name:action.name,description:action.description||''}:l));
+        break;
+      }
     }
     } catch(e){ console.error('dispatch error',action.type,e); return false; }
-  },[session,profile,likes,reviews,notifications]);
+  },[session,profile,likes,reviews,notifications,lists,listItems,state]);
 
   /* Loading screen */
   if(loading) return (
@@ -2328,7 +2568,7 @@ function App() {
     }
   }}/>;
 
-  const activePage=route.page==='game'?null:route.page;
+  const activePage=(route.page==='game'||route.page==='list')?null:route.page;
   const NAV=[{id:'home',label:'Home',Icon:IconHome},{id:'search',label:'Search',Icon:IconSearch},{id:'add',label:'',isAdd:true},{id:'friends',label:'Friends',Icon:IconPeople},{id:'profile',label:'Profile',Icon:IconPerson}];
 
   return (
@@ -2341,6 +2581,7 @@ function App() {
         {route.page==='profile'     &&<ProfilePage     state={state} dispatch={dispatch} navigate={navigate} showToast={showToast} onSignOut={()=>sb.auth.signOut()}/>}
         {route.page==='game'        &&<GamePage        gameId={route.params.gameId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
         {route.page==='public_profile'&&<PublicProfilePage userId={route.params.userId} username={route.params.username} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
+        {route.page==='list'          &&<ListDetailPage   listId={route.params.listId} state={state} dispatch={dispatch} navigate={navigate} showToast={showToast}/>}
       </div>
       <div className="nav">
         {NAV.map(tab=>(
